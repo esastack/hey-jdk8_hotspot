@@ -72,7 +72,7 @@ GCTraceTime::~GCTraceTime() {
 
   if (_doit) {
     const Tickspan duration = stop_counter - _start_counter;
-    double duration_in_seconds = TicksToTimeHelper::seconds(duration);
+    double duration_in_seconds = TimeHelper::counter_to_seconds(duration.value());
     if (_print_cr) {
       gclog_or_tty->print_cr(", %3.7f secs]", duration_in_seconds);
     } else {

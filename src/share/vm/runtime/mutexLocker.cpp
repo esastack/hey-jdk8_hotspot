@@ -39,6 +39,7 @@
 
 Mutex*   Patching_lock                = NULL;
 Monitor* SystemDictionary_lock        = NULL;
+Mutex*   Module_lock                  = NULL;
 Mutex*   PackageTable_lock            = NULL;
 Mutex*   CompiledIC_lock              = NULL;
 Mutex*   InlineCacheBuffer_lock       = NULL;
@@ -126,13 +127,11 @@ Mutex*   Management_lock              = NULL;
 Monitor* Service_lock                 = NULL;
 Monitor* PeriodicTask_lock            = NULL;
 
-#ifdef INCLUDE_TRACE
 Mutex*   JfrStacktrace_lock           = NULL;
 Monitor* JfrMsg_lock                  = NULL;
 Mutex*   JfrBuffer_lock               = NULL;
 Mutex*   JfrStream_lock               = NULL;
 Mutex*   JfrThreadGroups_lock         = NULL;
-#endif
 
 #ifndef SUPPORTS_NATIVE_CX8
 Mutex*   UnsafeJlong_lock             = NULL;
@@ -217,6 +216,7 @@ void mutex_init() {
   def(JmethodIdCreation_lock       , Mutex  , leaf,        true ); // used for creating jmethodIDs.
 
   def(SystemDictionary_lock        , Monitor, leaf,        true ); // lookups done by VM thread
+  def(Module_lock                  , Mutex  , leaf+2,      true );
   def(PackageTable_lock            , Mutex  , leaf,        false);
   def(InlineCacheBuffer_lock       , Mutex  , leaf,        true );
   def(VMStatistic_lock             , Mutex  , leaf,        false);
@@ -280,13 +280,11 @@ void mutex_init() {
   def(CompileThread_lock           , Monitor, nonleaf+5,   false );
   def(PeriodicTask_lock            , Monitor, nonleaf+5,   true);
 
-#ifdef INCLUDE_TRACE
   def(JfrMsg_lock                  , Monitor, leaf,        true);
   def(JfrBuffer_lock               , Mutex,   leaf,        true);
   def(JfrThreadGroups_lock         , Mutex,   leaf,        true);
   def(JfrStream_lock               , Mutex,   nonleaf,     true);
   def(JfrStacktrace_lock           , Mutex,   special,     true);
-#endif
 
 #ifndef SUPPORTS_NATIVE_CX8
   def(UnsafeJlong_lock             , Mutex,   special,     false);

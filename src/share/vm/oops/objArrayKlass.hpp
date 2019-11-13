@@ -96,6 +96,10 @@ class ObjArrayKlass : public ArrayKlass {
     return (ObjArrayKlass*) k;
   }
 
+  static const ObjArrayKlass* cast(const Klass* k) {
+    assert(k->oop_is_objArray(), "cast to ObjArrayKlass");
+    return static_cast<const ObjArrayKlass*>(k);
+  }
   // Sizing
   static int header_size()                { return sizeof(ObjArrayKlass)/HeapWordSize; }
   int size() const                        { return ArrayKlass::static_size(header_size()); }

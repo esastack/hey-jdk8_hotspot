@@ -38,6 +38,32 @@ ClassFileStream::ClassFileStream(u1* buffer, int length, const char* source) {
   _need_verify  = false;
 }
 
+const u1* ClassFileStream::clone_buffer() const {
+  u1* const new_buffer_start = NEW_RESOURCE_ARRAY(u1, length());
+  memcpy(new_buffer_start, _buffer_start, length());
+  return new_buffer_start;
+}
+
+const char* const ClassFileStream::clone_source() const {
+  const char* const src = source();
+  char* source_copy = NULL;
+  if (src != NULL) {
+    size_t source_len = strlen(src);
+    source_copy = NEW_RESOURCE_ARRAY(char, source_len + 1);
+    strncpy(source_copy, src, source_len + 1);
+  }
+  return source_copy;
+}
+
+// Caller responsible for ResourceMark
+// clone stream with a rewound position
+const ClassFileStream* ClassFileStream::clone() const {
+  const u1* const new_buffer_start = clone_buffer();
+  return new ClassFileStream(const_cast<u1*>(new_buffer_start),
+                             length(),
+                             clone_source());
+}
+
 u1 ClassFileStream::get_u1(TRAPS) {
   if (_need_verify) {
     guarantee_more(1, CHECK_0);

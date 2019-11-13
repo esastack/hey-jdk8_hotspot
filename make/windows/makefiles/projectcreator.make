@@ -121,7 +121,6 @@ ProjectCreatorIDEOptions=\
         -define TARGET_OS_ARCH_windows_x86 \
         -define TARGET_OS_FAMILY_windows \
         -define TARGET_COMPILER_visCPP \
-        -define INCLUDE_TRACE=1 \
        $(ProjectCreatorIncludesPRIVATE)
 
 # Add in build-specific options

@@ -264,6 +264,14 @@ struct Flag {
   bool get_bool() const;
   void set_bool(bool value);
 
+  bool is_int() const;
+  int get_int() const;
+  void set_int(int value);
+
+  bool is_uint() const;
+  uint get_uint() const;
+  void set_uint(uint value);
+  
   bool is_intx() const;
   intx get_intx() const;
   void set_intx(intx value);
@@ -276,6 +284,10 @@ struct Flag {
   uint64_t get_uint64_t() const;
   void set_uint64_t(uint64_t value);
 
+  bool is_size_t() const;
+  size_t get_size_t() const;
+  void set_size_t(size_t value);
+  
   bool is_double() const;
   double get_double() const;
   void set_double(double value);
@@ -3990,7 +4002,23 @@ class CommandLineFlags {
                                                                             \
   product_pd(bool, PreserveFramePointer,                                    \
              "Use the FP register for holding the frame pointer "           \
-             "and not as a general purpose register.")
+             "and not as a general purpose register.")                      \
+  JFR_ONLY(product(bool, FlightRecorder, false,                             \
+          "Enable Flight Recorder"))                                        \
+                                                                            \
+  JFR_ONLY(product(ccstr, FlightRecorderOptions, NULL,                      \
+          "Flight Recorder options"))                                       \
+                                                                            \
+  JFR_ONLY(product(ccstr, StartFlightRecording, NULL,                       \
+          "Start flight recording with options"))                           \
+                                                                            \
+  experimental(bool, UseFastUnorderedTimeStamps, false,                     \
+          "Use platform unstable time where supported for timestamps only") \
+                                                                            \
+  product(bool, EnableJFR, false, "Enable JFR feature")                     \
+                                                                            \
+  product(bool, UnlockCommercialFeatures, false,                            \
+          "This flag is ignored. Left for compatibility")         
 
 /*
  *  Macros for factoring of globals

@@ -213,6 +213,10 @@ class G1ParScanThreadState : public StackObj {
                                   AllocationContext_t const context);
 
   inline InCSetState next_state(InCSetState const state, markOop const m, uint& age);
+
+  void report_promotion_event(InCSetState const dest_state,
+                              oop const old, size_t word_sz, uint age,
+                              HeapWord * const obj_ptr, AllocationContext_t context) const;
  public:
 
   oop copy_to_survivor_space(InCSetState const state, oop const obj, markOop const old_mark);

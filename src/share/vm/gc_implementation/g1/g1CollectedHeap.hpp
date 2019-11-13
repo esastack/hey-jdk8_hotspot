@@ -1082,7 +1082,8 @@ public:
 
   ConcurrentGCTimer* gc_timer_cm() const { return _gc_timer_cm; }
   G1OldTracer* gc_tracer_cm() const { return _gc_tracer_cm; }
-
+  G1NewTracer* gc_tracer_stw() const { return _gc_tracer_stw; }
+  
   virtual size_t capacity() const;
   virtual size_t used() const;
   // This should be called when we're not holding the heap lock. The

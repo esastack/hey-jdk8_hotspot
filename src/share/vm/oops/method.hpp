@@ -116,6 +116,8 @@ class Method : public Metadata {
                     _has_injected_profile : 1,
                                           : 2;
 
+  JFR_ONLY(DEFINE_TRACE_FLAG;)
+
 #ifndef PRODUCT
   int               _compiled_invocation_count;  // Number of nmethod invocations so far (for perf. debugging)
 #endif
@@ -804,6 +806,8 @@ class Method : public Metadata {
   void set_hidden(bool x)               {        _hidden = x;               }
   bool     has_injected_profile()       { return _has_injected_profile;     }
   void set_has_injected_profile(bool x) {        _has_injected_profile = x; }
+
+  JFR_ONLY(DEFINE_TRACE_FLAG_ACCESSOR;)
 
   ConstMethod::MethodType method_type() const {
       return _constMethod->method_type();

@@ -46,8 +46,8 @@
 #include "runtime/java.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "services/memoryService.hpp"
-#include "trace/tracing.hpp"
 #include "utilities/xmlstream.hpp"
+#include "jfr/jfrEvents.hpp"
 
 // Helper class for printing in CodeCache
 
@@ -779,6 +779,7 @@ void CodeCache::report_codemem_full() {
   _codemem_full_count++;
   EventCodeCacheFull event;
   if (event.should_commit()) {
+    event.set_codeBlobType((u1)CodeBlobType::All);
     event.set_startAddress((u8)low_bound());
     event.set_commitedTopAddress((u8)high());
     event.set_reservedTopAddress((u8)high_bound());

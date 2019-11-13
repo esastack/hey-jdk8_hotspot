@@ -64,9 +64,7 @@
 #include "services/threadService.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/ticks.hpp"
-#if INCLUDE_TRACE
-#include "trace/tracing.hpp"
-#endif
+#include "jfr/jfrEvents.hpp"
 
 Dictionary*            SystemDictionary::_dictionary          = NULL;
 PlaceholderTable*      SystemDictionary::_placeholders        = NULL;
@@ -598,6 +596,15 @@ instanceKlassHandle SystemDictionary::handle_parallel_super_load(
   return (nh);
 }
 
+static void post_class_load_event(EventClassLoad* event, const InstanceKlass* k, const ClassLoaderData* init_cld) {
+  assert(event != NULL, "invariant");
+  assert(k != NULL, "invariant");
+  assert(event->should_commit(), "invariant");
+  event->set_loadedClass(k);
+  event->set_definingClassLoader(k->class_loader_data());
+  event->set_initiatingClassLoader(init_cld);
+  event->commit();
+}
 
 Klass* SystemDictionary::resolve_instance_class_or_null(Symbol* name,
                                                         Handle class_loader,
@@ -605,6 +612,8 @@ Klass* SystemDictionary::resolve_instance_class_or_null(Symbol* name,
                                                         TRAPS) {
   assert(name != NULL && !FieldType::is_array(name) &&
          !FieldType::is_obj(name), "invalid class name");
+
+  EventClassLoad class_load_start_event;
 
   Ticks class_load_start_time = Ticks::now();
 
@@ -857,7 +866,9 @@ Klass* SystemDictionary::resolve_instance_class_or_null(Symbol* name,
     return NULL;
   }
 
-  post_class_load_event(class_load_start_time, k, class_loader);
+  if (class_load_start_event.should_commit()) {
+    post_class_load_event(&class_load_start_event, k(), loader_data);
+  }
 
 #ifdef ASSERT
   {
@@ -982,6 +993,8 @@ Klass* SystemDictionary::parse_stream(Symbol* class_name,
                                       TRAPS) {
   TempNewSymbol parsed_name = NULL;
 
+  EventClassLoad class_load_start_event;
+
   Ticks class_load_start_time = Ticks::now();
 
   ClassLoaderData* loader_data;
@@ -1042,8 +1055,10 @@ Klass* SystemDictionary::parse_stream(Symbol* class_name,
         assert(THREAD->is_Java_thread(), "thread->is_Java_thread()");
         JvmtiExport::post_class_load((JavaThread *) THREAD, k());
     }
-
-    post_class_load_event(class_load_start_time, k, class_loader);
+    
+    if (class_load_start_event.should_commit()) {
+      post_class_load_event(&class_load_start_event, k(), loader_data);
+    }  
   }
   assert(host_klass.not_null() || cp_patches == NULL,
          "cp_patches only found with host_klass");
@@ -1385,6 +1400,15 @@ instanceKlassHandle SystemDictionary::load_instance_class(Symbol* class_name, Ha
   }
 }
 
+static void post_class_define_event(InstanceKlass* k, const ClassLoaderData* def_cld) {
+  EventClassDefine event;
+  if (event.should_commit()) {
+    event.set_definedClass(k);
+    event.set_definingClassLoader(def_cld);
+    event.commit();
+  }
+}
+
 void SystemDictionary::define_instance_class(instanceKlassHandle k, TRAPS) {
 
   ClassLoaderData* loader_data = k->class_loader_data();
@@ -1454,7 +1478,7 @@ void SystemDictionary::define_instance_class(instanceKlassHandle k, TRAPS) {
       JvmtiExport::post_class_load((JavaThread *) THREAD, k());
 
   }
-
+  JFR_ONLY(post_class_define_event(k(), loader_data);)
 }
 
 // Support parallel classloading
@@ -2685,26 +2709,6 @@ void SystemDictionary::verify() {
   // Verify constraint table
   guarantee(constraints() != NULL, "Verify of loader constraints failed");
   constraints()->verify(dictionary(), placeholders());
-}
-
-// utility function for class load event
-void SystemDictionary::post_class_load_event(const Ticks& start_time,
-                                             instanceKlassHandle k,
-                                             Handle initiating_loader) {
-#if INCLUDE_TRACE
-  EventClassLoad event(UNTIMED);
-  if (event.should_commit()) {
-    event.set_starttime(start_time);
-    event.set_loadedClass(k());
-    oop defining_class_loader = k->class_loader();
-    event.set_definingClassLoader(defining_class_loader !=  NULL ?
-                                    defining_class_loader->klass() : (Klass*)NULL);
-    oop class_loader = initiating_loader.is_null() ? (oop)NULL : initiating_loader();
-    event.set_initiatingClassLoader(class_loader != NULL ?
-                                      class_loader->klass() : (Klass*)NULL);
-    event.commit();
-  }
-#endif // INCLUDE_TRACE
 }
 
 #ifndef PRODUCT

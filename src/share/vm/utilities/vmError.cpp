@@ -42,6 +42,7 @@
 #include "utilities/events.hpp"
 #include "utilities/top.hpp"
 #include "utilities/vmError.hpp"
+#include "jfr/jfr.hpp"
 
 PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
@@ -938,6 +939,13 @@ void VMError::report_and_die() {
     // reset signal handlers or exception filter; make sure recursive crashes
     // are handled properly.
     reset_signal_handlers();
+
+    EventShutdown e;
+    if (e.should_commit()) {
+      e.set_reason("VM Error");
+      e.commit();
+    }
+    JFR_ONLY(Jfr::on_vm_shutdown(true);)
 
   } else {
     // If UseOsErrorReporting we call this for each level of the call stack

@@ -65,7 +65,7 @@
 #include "runtime/signature.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/timer.hpp"
-#include "trace/tracing.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "utilities/copy.hpp"
 #if defined AD_MD_HPP
 # include AD_MD_HPP
@@ -3595,10 +3595,10 @@ void Compile::record_failure(const char* reason) {
     _failure_reason = reason;
   }
 
-  EventCompilerFailure event;
+  EventCompilationFailure event;
   if (event.should_commit()) {
-    event.set_compileID(Compile::compile_id());
-    event.set_failure(reason);
+    event.set_compileId(compile_id());
+    event.set_failureMessage(reason);
     event.commit();
   }
 
