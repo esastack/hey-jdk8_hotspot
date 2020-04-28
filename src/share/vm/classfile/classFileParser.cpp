@@ -4214,8 +4214,6 @@ instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
     ClassLoadingService::notify_class_loaded(InstanceKlass::cast(this_klass()),
                                              false /* not shared class */);
 
-    JFR_ONLY(INIT_ID(InstanceKlass::cast(this_klass()));)
-
     if (TraceClassLoading) {
       ResourceMark rm;
       // print in a single call to reduce interleaving of output
@@ -4264,6 +4262,8 @@ instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
     // preserve result across HandleMark
     preserve_this_klass = this_klass();
   }
+
+  JFR_ONLY(INIT_ID(preserve_this_klass);)
 
   // Create new handle outside HandleMark (might be needed for
   // Extended Class Redefinition)

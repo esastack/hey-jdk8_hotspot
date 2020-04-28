@@ -91,7 +91,7 @@ void RootSetClosure::process_roots(OopClosure* closure) {
   CLDToOopClosure cldt_closure(closure);
   ClassLoaderDataGraph::always_strong_cld_do(&cldt_closure);
   CodeBlobToOopClosure blobs(closure, false);
-  Threads::oops_do(closure, &cldt_closure, &blobs);
+  Threads::oops_do(closure, NULL /*&cldt_closure*/, &blobs);
   ObjectSynchronizer::oops_do(closure);
   Universe::oops_do(closure);
   JNIHandles::oops_do(closure);

@@ -140,7 +140,7 @@ HeapWord* CollectedHeap::common_mem_allocate_noinit(KlassHandle klass, size_t si
            "Unexpected exception, will result in uninitialized storage");
     THREAD->incr_allocated_bytes(size * HeapWordSize);
 
-    AllocTracer::send_allocation_outside_tlab(klass(), result, size * HeapWordSize, THREAD);
+    AllocTracer::send_allocation_outside_tlab(klass, result, size * HeapWordSize, Thread::current());
     
     return result;
   }
@@ -185,7 +185,7 @@ HeapWord* CollectedHeap::allocate_from_tlab(KlassHandle klass, Thread* thread, s
     return obj;
   }
   // Otherwise...
-  return allocate_from_tlab_slow(klass(), thread, size);
+  return allocate_from_tlab_slow(klass, thread, size);
 }
 
 void CollectedHeap::init_obj(HeapWord* obj, size_t size) {

@@ -596,13 +596,16 @@ instanceKlassHandle SystemDictionary::handle_parallel_super_load(
   return (nh);
 }
 
-static void post_class_load_event(EventClassLoad* event, const InstanceKlass* k, const ClassLoaderData* init_cld) {
+static void post_class_load_event(EventClassLoad* event, const InstanceKlass* k, Handle initiating_loader) {
   assert(event != NULL, "invariant");
   assert(k != NULL, "invariant");
   assert(event->should_commit(), "invariant");
   event->set_loadedClass(k);
   event->set_definingClassLoader(k->class_loader_data());
-  event->set_initiatingClassLoader(init_cld);
+  oop class_loader = initiating_loader.is_null() ? (oop)NULL : initiating_loader();
+  event->set_initiatingClassLoader(class_loader != NULL ?
+                                   ClassLoaderData::class_loader_data_or_null(class_loader) :
+                                   (ClassLoaderData*)NULL);
   event->commit();
 }
 
@@ -614,8 +617,6 @@ Klass* SystemDictionary::resolve_instance_class_or_null(Symbol* name,
          !FieldType::is_obj(name), "invalid class name");
 
   EventClassLoad class_load_start_event;
-
-  Ticks class_load_start_time = Ticks::now();
 
   // UseNewReflection
   // Fix for 4474172; see evaluation for more details
@@ -867,7 +868,7 @@ Klass* SystemDictionary::resolve_instance_class_or_null(Symbol* name,
   }
 
   if (class_load_start_event.should_commit()) {
-    post_class_load_event(&class_load_start_event, k(), loader_data);
+    post_class_load_event(&class_load_start_event, k(), class_loader);
   }
 
 #ifdef ASSERT
@@ -995,8 +996,6 @@ Klass* SystemDictionary::parse_stream(Symbol* class_name,
 
   EventClassLoad class_load_start_event;
 
-  Ticks class_load_start_time = Ticks::now();
-
   ClassLoaderData* loader_data;
   if (host_klass.not_null()) {
     // Create a new CLD for anonymous class, that uses the same class loader
@@ -1057,7 +1056,7 @@ Klass* SystemDictionary::parse_stream(Symbol* class_name,
     }
     
     if (class_load_start_event.should_commit()) {
-      post_class_load_event(&class_load_start_event, k(), loader_data);
+      post_class_load_event(&class_load_start_event, k(), class_loader);
     }  
   }
   assert(host_klass.not_null() || cp_patches == NULL,
@@ -1100,12 +1099,13 @@ Klass* SystemDictionary::resolve_from_stream(Symbol* class_name,
   //
   // Note: "name" is updated.
 
-  instanceKlassHandle k = ClassFileParser(st).parseClassFile(class_name,
-                                                             loader_data,
-                                                             protection_domain,
-                                                             parsed_name,
-                                                             verify,
-                                                             THREAD);
+  ClassFileParser parser(st);
+  instanceKlassHandle k = parser.parseClassFile(class_name,
+                                                loader_data,
+                                                protection_domain,
+                                                parsed_name,
+                                                verify,
+                                                THREAD);
 
   const char* pkg = "java/";
   size_t pkglen = strlen(pkg);
@@ -1139,6 +1139,12 @@ Klass* SystemDictionary::resolve_from_stream(Symbol* class_name,
     // asserts that that's the case.
     assert(is_internal_format(parsed_name),
            "external class name format used internally");
+
+    {
+      InstanceKlass* ik = k();
+      ON_KLASS_CREATION(ik, parser, THREAD);
+      k = instanceKlassHandle(ik);
+    }
 
     // Add class just loaded
     // If a class loader supports parallel classloading handle parallel define requests

@@ -148,8 +148,8 @@ void JfrTypeManager::write_safepoint_types(JfrCheckpointWriter& writer) {
 }
 
 void JfrTypeManager::write_type_set() {
-  // can safepoint here because of Module_lock
-  MutexLockerEx lock(SafepointSynchronize::is_at_safepoint() ? NULL : Module_lock);
+  // can safepoint here because of PackageTable_lock
+  MutexLockerEx lock(SafepointSynchronize::is_at_safepoint() ? NULL : PackageTable_lock);
   JfrCheckpointWriter writer(true, true, Thread::current());
   TypeSet set;
   set.serialize(writer);

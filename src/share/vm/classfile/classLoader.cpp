@@ -1134,6 +1134,10 @@ instanceKlassHandle ClassLoader::load_classfile(Symbol* h_name, TRAPS) {
       }
       return h;
     }
+    InstanceKlass* ik = result();
+    ON_KLASS_CREATION(ik, parser, THREAD);
+    result = instanceKlassHandle(ik);
+  
     h = context.record_result(classpath_index, e, result, THREAD);
   } else {
     if (DumpSharedSpaces) {

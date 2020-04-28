@@ -339,9 +339,10 @@ static bool full_buffer_registration(BufferPtr buffer, JfrStorageAgeMspace* age_
 void JfrStorage::register_full(BufferPtr buffer, Thread* thread) {
   assert(buffer != NULL, "invariant");
   assert(buffer->retired(), "invariant");
-  assert(buffer->acquired_by(thread), "invariant");
+  // assert(buffer->acquired_by(thread), "invariant");
   if (!full_buffer_registration(buffer, _age_mspace, control(), thread)) {
     handle_registration_failure(buffer);
+    buffer->release(); 
   }
   if (control().should_post_buffer_full_message()) {
     _post_box.post(MSG_FULLBUFFER);
@@ -376,8 +377,9 @@ void JfrStorage::release(BufferPtr buffer, Thread* thread) {
     }
   }
   assert(buffer->empty(), "invariant");
-  assert(buffer->identity() != NULL, "invariant");
+//  assert(buffer->identity() != NULL, "invariant");
   control().increment_dead();
+  buffer->release();
   buffer->set_retired();
 }
 
@@ -745,7 +747,7 @@ public:
       ++_count;
       _amount += t->total_size();
       t->clear_retired();
-      t->release();
+//      t->release();
       _control.decrement_dead();
       mspace_release_full_critical(t, _mspace);
     }

@@ -27,8 +27,8 @@
 
 #include "utilities/ticks.hpp"
 
-typedef FastElapsedCounter JfrTicks;
-typedef TimeInterval<FastElapsedCounter> JfrTickspan;
+typedef TimeInstant<CounterRepresentation, FastUnorderedElapsedCounterSource> JfrTicks;
+typedef TimeInterval<CounterRepresentation, FastUnorderedElapsedCounterSource> JfrTickspan;
 
 class JfrTime {
  private:

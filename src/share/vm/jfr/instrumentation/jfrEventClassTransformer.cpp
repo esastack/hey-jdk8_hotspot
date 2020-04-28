@@ -40,7 +40,6 @@
 #include "jfr/utilities/jfrLog.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
-
 #include "oops/instanceKlass.hpp"
 #include "oops/method.hpp"
 #include "prims/jvmtiRedefineClasses.hpp"
@@ -61,21 +60,21 @@ static const char* utf8_constants[] = {
   "J",            // 1
   "commit",       // 2
   "eventHandler", // 3
-  "duration",     // 4
-  "begin",        // 5
-  "()V",          // 6
-  "isEnabled",    // 7
-  "()Z",          // 8
-  "end",          // 9
-  "shouldCommit", // 10
-  "startTime",    // 11 // LAST_REQUIRED_UTF8
-  "Ljdk/jfr/internal/handlers/EventHandler;", // 12
+  "Ljdk/jfr/internal/handlers/EventHandler;", // 4
+  "duration",     // 5
+  "begin",        // 6
+  "()V",          // 7
+  "isEnabled",    // 8
+  "()Z",          // 9
+  "end",          // 10
+  "shouldCommit", // 11
+  "startTime",    // 12
   "Ljava/lang/Object;", // 13
   "<clinit>",     // 14
   "jdk/jfr/FlightRecorder", // 15
   "register",     // 16
   "(Ljava/lang/Class;)V", // 17
-  "StackMapTable", // 18
+  "StackMapTable", // 18 // LAST_REQUIRED_UTF8
   "Exceptions", // 19
   "LineNumberTable", // 20
   "LocalVariableTable", // 21
@@ -88,6 +87,7 @@ enum utf8_req_symbols {
   UTF8_REQ_J_FIELD_DESC,
   UTF8_REQ_commit,
   UTF8_REQ_eventHandler,
+  UTF8_REQ_eventHandler_FIELD_DESC,
   UTF8_REQ_duration,
   UTF8_REQ_begin,
   UTF8_REQ_EMPTY_VOID_METHOD_DESC,
@@ -96,17 +96,16 @@ enum utf8_req_symbols {
   UTF8_REQ_end,
   UTF8_REQ_shouldCommit,
   UTF8_REQ_startTime,
+  UTF8_REQ_LjavaLangObject,
+  UTF8_REQ_clinit,
+  UTF8_REQ_FlightRecorder,
+  UTF8_REQ_register,
+  UTF8_REQ_CLASS_VOID_METHOD_DESC,
   NOF_UTF8_REQ_SYMBOLS
 };
 
 enum utf8_opt_symbols {
-  UTF8_OPT_eventHandler_FIELD_DESC = NOF_UTF8_REQ_SYMBOLS,
-  UTF8_OPT_LjavaLangObject,
-  UTF8_OPT_clinit,
-  UTF8_OPT_FlightRecorder,
-  UTF8_OPT_register,
-  UTF8_OPT_CLASS_VOID_METHOD_DESC,
-  UTF8_OPT_StackMapTable,
+  UTF8_OPT_StackMapTable = NOF_UTF8_REQ_SYMBOLS,
   UTF8_OPT_Exceptions,
   UTF8_OPT_LineNumberTable,
   UTF8_OPT_LocalVariableTable,
@@ -496,9 +495,9 @@ static u2 add_flr_register_method_constants(JfrBigEndianWriter& writer,
                                             TRAPS) {
   assert(utf8_indexes != NULL, "invariant");
   return add_method_ref_info(writer,
-                             utf8_indexes[UTF8_OPT_FlightRecorder],
-                             utf8_indexes[UTF8_OPT_register],
-                             utf8_indexes[UTF8_OPT_CLASS_VOID_METHOD_DESC],
+                             utf8_indexes[UTF8_REQ_FlightRecorder],
+                             utf8_indexes[UTF8_REQ_register],
+                             utf8_indexes[UTF8_REQ_CLASS_VOID_METHOD_DESC],
                              orig_cp_len,
                              number_of_new_constants,
                              THREAD);
@@ -530,7 +529,7 @@ static u2 add_field_infos(JfrBigEndianWriter& writer, const u2* utf8_indexes, bo
   assert(utf8_indexes != NULL, "invariant");
   add_field_info(writer,
                  utf8_indexes[UTF8_REQ_eventHandler],
-                 untypedEventHandler ? utf8_indexes[UTF8_OPT_LjavaLangObject] : utf8_indexes[UTF8_OPT_eventHandler_FIELD_DESC],
+                 untypedEventHandler ? utf8_indexes[UTF8_REQ_LjavaLangObject] : utf8_indexes[UTF8_REQ_eventHandler_FIELD_DESC],
                  true); // static
 
   add_field_info(writer,
@@ -1008,7 +1007,7 @@ static jlong insert_clinit_method(const InstanceKlass* ik,
   // This is to ensure that padding can be done
   // where needed and to simplify size calculations.
   static const u2 injected_code_length = 8;
-  const u2 name_index = utf8_indexes[UTF8_OPT_clinit];
+  const u2 name_index = utf8_indexes[UTF8_REQ_clinit];
   assert(name_index != invalid_cp_index, "invariant");
   const u2 desc_index = utf8_indexes[UTF8_REQ_EMPTY_VOID_METHOD_DESC];
   const u2 max_stack = MAX2(clinit_method != NULL ? clinit_method->verifier_max_stack() : 1, 1);
@@ -1169,27 +1168,27 @@ static u2 resolve_utf8_indexes(JfrBigEndianWriter& writer,
   }
 
   // resolve optional constants
-  utf8_indexes[UTF8_OPT_eventHandler_FIELD_DESC] = untypedEventHandler ? invalid_cp_index :
-    find_or_add_utf8_info(writer, ik, utf8_constants[UTF8_OPT_eventHandler_FIELD_DESC], orig_cp_len, added_cp_entries, THREAD);
-
-  utf8_indexes[UTF8_OPT_LjavaLangObject] = untypedEventHandler ?
-    find_or_add_utf8_info(writer, ik, utf8_constants[UTF8_OPT_LjavaLangObject], orig_cp_len, added_cp_entries, THREAD) : invalid_cp_index;
-
-  if (register_klass) {
-    utf8_indexes[UTF8_OPT_clinit] =
-      find_or_add_utf8_info(writer, ik, utf8_constants[UTF8_OPT_clinit], orig_cp_len, added_cp_entries, THREAD);
-    utf8_indexes[UTF8_OPT_FlightRecorder] =
-      find_or_add_utf8_info(writer, ik, utf8_constants[UTF8_OPT_FlightRecorder], orig_cp_len, added_cp_entries, THREAD);
-    utf8_indexes[UTF8_OPT_register] =
-      find_or_add_utf8_info(writer, ik, utf8_constants[UTF8_OPT_register], orig_cp_len, added_cp_entries, THREAD);
-    utf8_indexes[UTF8_OPT_CLASS_VOID_METHOD_DESC] =
-      find_or_add_utf8_info(writer, ik, utf8_constants[UTF8_OPT_CLASS_VOID_METHOD_DESC], orig_cp_len, added_cp_entries, THREAD);
-  } else {
-    utf8_indexes[UTF8_OPT_clinit] = invalid_cp_index;
-    utf8_indexes[UTF8_OPT_FlightRecorder] = invalid_cp_index;
-    utf8_indexes[UTF8_OPT_register] = invalid_cp_index;
-    utf8_indexes[UTF8_OPT_CLASS_VOID_METHOD_DESC] = invalid_cp_index;
-  }
+//  utf8_indexes[UTF8_REQ_eventHandler_FIELD_DESC] = untypedEventHandler ? invalid_cp_index :
+//    find_or_add_utf8_info(writer, ik, utf8_constants[UTF8_REQ_eventHandler_FIELD_DESC], orig_cp_len, added_cp_entries, THREAD);
+//
+//  utf8_indexes[UTF8_REQ_LjavaLangObject] = untypedEventHandler ?
+//    find_or_add_utf8_info(writer, ik, utf8_constants[UTF8_REQ_LjavaLangObject], orig_cp_len, added_cp_entries, THREAD) : invalid_cp_index;
+//
+//  if (register_klass) {
+//    utf8_indexes[UTF8_REQ_clinit] =
+//      find_or_add_utf8_info(writer, ik, utf8_constants[UTF8_REQ_clinit], orig_cp_len, added_cp_entries, THREAD);
+//    utf8_indexes[UTF8_REQ_FlightRecorder] =
+//      find_or_add_utf8_info(writer, ik, utf8_constants[UTF8_REQ_FlightRecorder], orig_cp_len, added_cp_entries, THREAD);
+//    utf8_indexes[UTF8_REQ_register] =
+//      find_or_add_utf8_info(writer, ik, utf8_constants[UTF8_REQ_register], orig_cp_len, added_cp_entries, THREAD);
+//    utf8_indexes[UTF8_REQ_CLASS_VOID_METHOD_DESC] =
+//      find_or_add_utf8_info(writer, ik, utf8_constants[UTF8_REQ_CLASS_VOID_METHOD_DESC], orig_cp_len, added_cp_entries, THREAD);
+//  } else {
+//    utf8_indexes[UTF8_REQ_clinit] = invalid_cp_index;
+//    utf8_indexes[UTF8_REQ_FlightRecorder] = invalid_cp_index;
+//    utf8_indexes[UTF8_REQ_register] = invalid_cp_index;
+//    utf8_indexes[UTF8_REQ_CLASS_VOID_METHOD_DESC] = invalid_cp_index;
+//  }
 
   if (clinit_method != NULL && clinit_method->has_stackmap_table()) {
     utf8_indexes[UTF8_OPT_StackMapTable] =

@@ -156,7 +156,7 @@ void OSThreadSampler::do_task(const os::SuspendedThreadTaskContext& context) {
 
   if (JfrOptionSet::sample_protection()) {
     OSThreadSamplerCallback cb(*this, context);
-    os::WatcherThreadCrashProtection crash_protection;
+    os::ThreadCrashProtection crash_protection;
     if (!crash_protection.call(cb)) {
       log_error(jfr)("Thread method sampler crashed");
     }
@@ -215,7 +215,7 @@ class JfrNativeSamplerCallback : public os::CrashProtectionCallback {
 
 static void write_native_event(JfrThreadSampleClosure& closure, JavaThread* jt) {
   EventNativeMethodSample *ev = closure.next_event_native();
-  ev->set_starttime(JfrTicks::now());
+  ev->set_starttime(JfrTicks::now()); // Same to end time Type.
   ev->set_sampledThread(JFR_THREAD_ID(jt));
   ev->set_state(java_lang_Thread::get_thread_status(jt->threadObj()));
 }
@@ -264,7 +264,7 @@ bool JfrThreadSampleClosure::sample_thread_in_java(JavaThread* thread, JfrStackF
 bool JfrThreadSampleClosure::sample_thread_in_native(JavaThread* thread, JfrStackFrame* frames, u4 max_frames) {
   JfrNativeSamplerCallback cb(*this, thread, frames, max_frames);
   if (JfrOptionSet::sample_protection()) {
-    os::WatcherThreadCrashProtection crash_protection;
+    os::ThreadCrashProtection crash_protection;
     if (!crash_protection.call(cb)) {
       log_error(jfr)("Thread method sampler crashed for native");
     }
@@ -322,6 +322,7 @@ class JfrThreadSampler : public Thread {
   volatile bool _disenrolled;
   static Monitor* _transition_block_lock;
 
+  int find_index_of_JavaThread(JavaThread** t_list, uint length, JavaThread *target);
   JavaThread* next_thread(JavaThread** t_list, uint length, JavaThread* first_sampled, JavaThread* current);
   void task_stacktrace(JfrSampleType type, JavaThread** last_thread);
   JfrThreadSampler(size_t interval_java, size_t interval_native, u4 max_frames);
@@ -407,13 +408,36 @@ void JfrThreadSampler::on_javathread_suspend(JavaThread* thread) {
   }
 }
 
+int JfrThreadSampler::find_index_of_JavaThread(JavaThread** t_list, uint length, JavaThread *target) {
+  assert(Threads_lock->owned_by_self(), "Holding the thread table lock.");
+  if (target == NULL) {
+    return -1;
+  }
+  for (uint i = 0; i < length; i++) {
+    if (target == t_list[i]) {
+      return (int)i;
+    }
+  }
+  return -1;
+}
+
 JavaThread* JfrThreadSampler::next_thread(JavaThread** t_list, uint length, JavaThread* first_sampled, JavaThread* current) {
   assert(t_list != NULL, "invariant");
   assert(Threads_lock->owned_by_self(), "Holding the thread table lock.");
   assert(_cur_index >= -1 && (uint)_cur_index + 1 <= length, "invariant");
-  assert((current == NULL && -1 == _cur_index), "invariant");
 
-  if ((uint)_cur_index + 1 == length) {
+  if (current == NULL) {
+    _cur_index = 0;
+    return t_list[_cur_index];
+  }
+
+  if (_cur_index == -1 || t_list[_cur_index] != current) {
+    // 'current' is not at '_cur_index' so find it:
+    _cur_index = find_index_of_JavaThread(t_list, length, current);
+    assert(_cur_index != -1, "current JavaThread should be findable.");
+  }
+  
+  if ((uint)_cur_index + 1 >= length) {
     // wrap
     _cur_index = 0;
   } else {
@@ -454,6 +478,9 @@ static jlong get_monotonic_ms() {
 void JfrThreadSampler::run() {
   assert(_sampler_thread == NULL, "invariant");
 
+  initialize_thread_local_storage();
+  record_stack_base_and_size();
+  
   _sampler_thread = this;
 
   jlong last_java_ms = get_monotonic_ms();

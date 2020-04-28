@@ -216,6 +216,7 @@ class JfrThreadLocal {
   static JfrBuffer* acquire(Thread* t, size_t size = 0);
   static void release(JfrBuffer* buffer, Thread* t);
   static void destroy_stackframes(Thread* t);
+  static void on_start(JavaThread* t);
   static void on_exit(JavaThread* t);
   static void on_destruct(Thread* t);
 

@@ -111,7 +111,7 @@ void JfrThreadCPULoadEvent::send_events() {
   JfrThreadLocal* const periodic_thread_tl = periodic_thread->jfr_thread_local();
   traceid periodic_thread_id = periodic_thread_tl->thread_id();
   const int processor_count = JfrThreadCPULoadEvent::get_processor_count();
-  JfrTicks event_time = JfrTicks::now();
+  JfrTicks event_time = JfrTicks::now(); // Event default use JfrTicks not Ticks(diff)
   jlong cur_wallclock_time = JfrThreadCPULoadEvent::get_wallclock_time();
 
   JavaThread *jt = Threads::first();
@@ -131,9 +131,9 @@ void JfrThreadCPULoadEvent::send_events() {
     }
     jt = jt->next();
   }
-  JfrTickspan span(JfrTicks::now(), event_time);
+
   log_trace(jfr)("Measured CPU usage for %d threads in %.3f milliseconds", thread_count,
-    (double)span.milliseconds());
+    (double)(JfrTicks::now() - event_time).milliseconds());
   // Restore this thread's thread id
   periodic_thread_tl->set_thread_id(periodic_thread_id);
 }

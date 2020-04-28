@@ -34,7 +34,6 @@
 #include "utilities/hashtable.hpp"
 #include "utilities/hashtable.inline.hpp"
 
-
 // The system dictionary stores all loaded classes and maps:
 //
 //   [class name,class loader] -> class   i.e.  [Symbol*,oop] -> Klass*
@@ -77,7 +76,6 @@ class LoaderConstraintTable;
 template <MEMFLAGS F> class HashtableBucket;
 class ResolutionErrorTable;
 class SymbolPropertyTable;
-class Ticks;
 
 // Certain classes are preloaded, such as java.lang.Object and java.lang.String.
 // They are all "well-known", in the sense that no class loader is allowed

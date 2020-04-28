@@ -28,7 +28,6 @@
 #include "jfr/utilities/jfrAllocation.hpp"
 
 class CPUInformation;
-class EnvironmentVariable;
 class NetworkInterface;
 class SystemProcess;
 

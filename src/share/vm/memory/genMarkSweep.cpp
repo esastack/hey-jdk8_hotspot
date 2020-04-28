@@ -34,6 +34,9 @@
 #include "gc_implementation/shared/gcTrace.hpp"
 #include "gc_implementation/shared/gcTraceTime.hpp"
 #include "gc_interface/collectedHeap.inline.hpp"
+#if INCLUDE_JFR
+#include "jfr/jfr.hpp"
+#endif
 #include "memory/genCollectedHeap.hpp"
 #include "memory/genMarkSweep.hpp"
 #include "memory/genOopClosures.inline.hpp"
@@ -228,6 +231,8 @@ void GenMarkSweep::mark_sweep_phase1(int level,
   // This is the point where the entire marking should have completed.
   assert(_marking_stack.is_empty(), "Marking should have completed");
 
+  JFR_ONLY(Jfr::weak_oops_do(&is_alive, &keep_alive);)
+  
   // Unload classes and purge the SystemDictionary.
   bool purged_class = SystemDictionary::do_unloading(&is_alive);
 

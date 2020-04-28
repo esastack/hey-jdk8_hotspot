@@ -636,6 +636,7 @@ class Compile : public Phase {
     EventCompilerPhase event;
     if (event.should_commit()) {
       event.set_starttime(C->_latest_stage_start_counter);
+      event.set_endtime(Ticks::now());
       event.set_phase((u1) cpt);
       event.set_compileId(C->_compile_id);
       event.set_phaseLevel(level);
@@ -652,6 +653,7 @@ class Compile : public Phase {
     EventCompilerPhase event;
     if (event.should_commit()) {
       event.set_starttime(C->_latest_stage_start_counter);
+      event.set_endtime(Ticks::now());
       event.set_phase((u1) PHASE_END);
       event.set_compileId(C->_compile_id);
       event.set_phaseLevel(level);

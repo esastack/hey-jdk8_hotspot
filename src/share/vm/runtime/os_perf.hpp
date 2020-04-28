@@ -25,36 +25,36 @@
 #ifndef SHARE_VM_RUNTIME_OS_PERF_HPP
 #define SHARE_VM_RUNTIME_OS_PERF_HPP
 
-#include "memory/allocation.hpp"
+#include "memory/allocation.inline.hpp"
 #include "utilities/macros.hpp"
 
 #define FUNCTIONALITY_NOT_IMPLEMENTED -8
 
-class EnvironmentVariable : public CHeapObj<mtInternal> {
- public:
-  char* _key;
-  char* _value;
-
-  EnvironmentVariable() {
-    _key = NULL;
-    _value = NULL;
-  }
-
-  ~EnvironmentVariable() {
-    if (_key != NULL) {
-      FREE_C_HEAP_ARRAY(char, _key, mtInternal);
-    }
-    if (_value != NULL) {
-      FREE_C_HEAP_ARRAY(char, _value, mtInternal);
-    }
-  }
-
-  EnvironmentVariable(char* key, char* value) {
-    _key = key;
-    _value = value;
-  }
-
-};
+//class EnvironmentVariable : public CHeapObj<mtInternal> {
+// public:
+//  char* _key;
+//  char* _value;
+//
+//  EnvironmentVariable() {
+//    _key = NULL;
+//    _value = NULL;
+//  }
+//
+//  ~EnvironmentVariable() {
+//    if (_key != NULL) {
+//      FREE_C_HEAP_ARRAY(char, _key, mtInternal);
+//    }
+//    if (_value != NULL) {
+//      FREE_C_HEAP_ARRAY(char, _value, mtInternal);
+//    }
+//  }
+//
+//  EnvironmentVariable(char* key, char* value) {
+//    _key = key;
+//    _value = value;
+//  }
+//
+//};
 
 
 class CPUInformation : public CHeapObj<mtInternal> {

@@ -29,7 +29,7 @@
 
 class AgeTableTracer : AllStatic {
   public:
-    static void send_tenuring_distribution_event(uint age, size_t size);
+    static void send_tenuring_distribution_event(uint age, size_t size, GCTracer &tracer);
     static bool is_tenuring_distribution_event_enabled();
 };
 

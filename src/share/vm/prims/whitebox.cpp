@@ -61,6 +61,7 @@
 #include "compiler/compileBroker.hpp"
 #include "jvmtifiles/jvmtiEnv.hpp"
 #include "runtime/compilationPolicy.hpp"
+#include "jfr/utilities/align.hpp"
 
 PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
@@ -79,11 +80,16 @@ WB_END
 WB_ENTRY(jint, WB_GetVMPageSize(JNIEnv* env, jobject o))
   return os::vm_page_size();
 WB_END
-
+ 
 WB_ENTRY(jlong, WB_GetVMLargePageSize(JNIEnv* env, jobject o))
   return os::large_page_size();
 WB_END
 
+WB_ENTRY(jlong, WB_GetHeapAlignment(JNIEnv* env, jobject o))
+  size_t alignment = Universe::heap()->collector_policy()->heap_alignment();
+  return (jlong)alignment;
+WB_END
+    
 class WBIsKlassAliveClosure : public KlassClosure {
     Symbol* _name;
     bool _found;
@@ -137,6 +143,10 @@ WB_ENTRY(jintArray, WB_GetLookupCacheMatches(JNIEnv* env, jobject o, jobject loa
   return result;
 WB_END
 
+WB_ENTRY(jboolean, WB_IsSharingEnabled(JNIEnv* env, jobject wb))
+  return UseSharedSpaces;
+WB_END
+  
 WB_ENTRY(void, WB_AddToBootstrapClassLoaderSearch(JNIEnv* env, jobject o, jstring segment)) {
 #if INCLUDE_JVMTI
   ResourceMark rm;
@@ -577,6 +587,14 @@ WB_ENTRY(jboolean, WB_EnqueueMethodForCompilation(JNIEnv* env, jobject o, jobjec
   return (mh->queued_for_compilation() || nm != NULL);
 WB_END
 
+WB_ENTRY(jboolean, WB_EnqueueInitializerForCompilation(JNIEnv* env, jobject o, jclass klass, jint comp_level))
+  InstanceKlass* ik = InstanceKlass::cast(java_lang_Class::as_Klass(JNIHandles::resolve(klass)));
+  methodHandle mh(THREAD, ik->class_initializer());
+  nmethod* nm = CompileBroker::compile_method(mh, InvocationEntryBci, comp_level, mh, mh->invocation_count(), "WhiteBox", THREAD);
+  MutexLockerEx mu(Compile_lock);
+  return (mh->queued_for_compilation() || nm != NULL);
+WB_END
+    
 class VM_WhiteBoxOperation : public VM_Operation {
  public:
   VM_WhiteBoxOperation()                         { }
@@ -653,13 +671,13 @@ WB_ENTRY(void, WB_MarkMethodProfiled(JNIEnv* env, jobject o, jobject method))
 WB_END
 
 template <typename T>
-static bool GetVMFlag(JavaThread* thread, JNIEnv* env, jstring name, T* value, bool (*TAt)(const char*, T*)) {
+static bool GetVMFlag(JavaThread* thread, JNIEnv* env, jstring name, T* value, bool (*TAt)(const char*, T*, bool, bool)) {
   if (name == NULL) {
     return false;
   }
   ThreadToNativeFromVM ttnfv(thread);   // can't be in VM when we call JNI
   const char* flag_name = env->GetStringUTFChars(name, NULL);
-  bool result = (*TAt)(flag_name, value);
+  bool result = (*TAt)(flag_name, value, true, true);
   env->ReleaseStringUTFChars(name, flag_name);
   return result;
 }
@@ -887,11 +905,94 @@ WB_ENTRY(jobjectArray, WB_GetNMethod(JNIEnv* env, jobject o, jobject method, jbo
 
   return result;
 WB_END
+    
+CodeBlob* WhiteBox::allocate_code_blob(int size, int blob_type) {
+  guarantee(WhiteBoxAPI, "internal testing API :: WhiteBox has to be enabled");
+  BufferBlob* blob;
+  int full_size = CodeBlob::align_code_offset(sizeof(BufferBlob));
+  if (full_size < size) {
+    full_size += align_up(size - full_size, oopSize);
+  }
+  {
+    MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
+    blob = (BufferBlob*) CodeCache::allocate(full_size);
+    ::new (blob) BufferBlob("WB::DummyBlob", full_size);
+  }
+  // Track memory usage statistic after releasing CodeCache_lock
+  MemoryService::track_code_cache_memory_usage();
+  return blob;
+}
 
+WB_ENTRY(jlong, WB_AllocateCodeBlob(JNIEnv* env, jobject o, jint size, jint blob_type))
+  if (size < 0) {
+    THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(),
+      err_msg("WB_AllocateCodeBlob: size is negative: " INT32_FORMAT, size));
+  }
+  return (jlong) WhiteBox::allocate_code_blob(size, blob_type);
+WB_END
+
+WB_ENTRY(void, WB_FreeCodeBlob(JNIEnv* env, jobject o, jlong addr))
+  if (addr == 0) {
+    return;
+  }
+  BufferBlob::free((BufferBlob*) addr);
+WB_END
 
 int WhiteBox::array_bytes_to_length(size_t bytes) {
   return Array<u1>::bytes_to_length(bytes);
 }
+
+int WhiteBox::get_blob_type(const CodeBlob* code) { 
+  guarantee(WhiteBoxAPI, "internal testing API :: WhiteBox has to be enabled"); 
+  return CodeBlobType::All;; 
+} 
+
+struct CodeBlobStub {
+  CodeBlobStub(const CodeBlob* blob) :
+      name(os::strdup(blob->name())),
+      size(blob->size()),
+      blob_type(WhiteBox::get_blob_type(blob)),
+      address((jlong) blob) { }
+  ~CodeBlobStub() { os::free((void*) name); }
+  const char* const name; 
+  const jint        size; 
+  const jint        blob_type; 
+  const jlong       address; 
+};
+
+static jobjectArray codeBlob2objectArray(JavaThread* thread, JNIEnv* env, CodeBlobStub* cb) {
+  jclass clazz = env->FindClass(vmSymbols::java_lang_Object()->as_C_string());
+  CHECK_JNI_EXCEPTION_(env, NULL);
+  jobjectArray result = env->NewObjectArray(4, clazz, NULL);
+
+  jstring name = env->NewStringUTF(cb->name);
+  CHECK_JNI_EXCEPTION_(env, NULL);
+  env->SetObjectArrayElement(result, 0, name);
+
+  jobject obj = integerBox(thread, env, cb->size);
+  CHECK_JNI_EXCEPTION_(env, NULL);
+  env->SetObjectArrayElement(result, 1, obj);
+
+  obj = integerBox(thread, env, cb->blob_type);
+  CHECK_JNI_EXCEPTION_(env, NULL);
+  env->SetObjectArrayElement(result, 2, obj);
+
+  obj = longBox(thread, env, cb->address);
+  CHECK_JNI_EXCEPTION_(env, NULL);
+  env->SetObjectArrayElement(result, 3, obj);
+
+  return result;
+}
+
+WB_ENTRY(jobjectArray, WB_GetCodeBlob(JNIEnv* env, jobject o, jlong addr))                                                             
+  if (addr == 0) {
+    THROW_MSG_NULL(vmSymbols::java_lang_NullPointerException(),
+      "WB_GetCodeBlob: addr is null");
+  }
+  ThreadToNativeFromVM ttn(thread);
+  CodeBlobStub stub((CodeBlob*) addr);
+  return codeBlob2objectArray(thread, env, &stub);
+WB_END
 
 WB_ENTRY(jlong, WB_AllocateMetaspace(JNIEnv* env, jobject wb, jobject class_loader, jlong size))
   if (size < 0) {
@@ -1073,12 +1174,14 @@ static JNINativeMethod methods[] = {
   {CC"getHeapOopSize",     CC"()I",                   (void*)&WB_GetHeapOopSize    },
   {CC"getVMPageSize",      CC"()I",                   (void*)&WB_GetVMPageSize     },
   {CC"getVMLargePageSize", CC"()J",                   (void*)&WB_GetVMLargePageSize},
+  {CC"getHeapAlignment",                 CC"()J",                   (void*)&WB_GetHeapAlignment},
   {CC"isClassAlive0",      CC"(Ljava/lang/String;)Z", (void*)&WB_IsClassAlive      },
   {CC"classKnownToNotExist",
                            CC"(Ljava/lang/ClassLoader;Ljava/lang/String;)Z",(void*)&WB_ClassKnownToNotExist},
   {CC"getLookupCacheURLs", CC"(Ljava/lang/ClassLoader;)[Ljava/net/URL;",    (void*)&WB_GetLookupCacheURLs},
   {CC"getLookupCacheMatches", CC"(Ljava/lang/ClassLoader;Ljava/lang/String;)[I",
                                                       (void*)&WB_GetLookupCacheMatches},
+  {CC"isSharingEnabled",   CC"()Z",                   (void*)&WB_IsSharingEnabled},
   {CC"parseCommandLine",
       CC"(Ljava/lang/String;[Lsun/hotspot/parser/DiagnosticCommand;)[Ljava/lang/Object;",
       (void*) &WB_ParseCommandLine
@@ -1138,8 +1241,10 @@ static JNINativeMethod methods[] = {
       CC"(I)I",                                       (void*)&WB_GetCompileQueueSize},
   {CC"testSetForceInlineMethod",
       CC"(Ljava/lang/reflect/Executable;Z)Z",         (void*)&WB_TestSetForceInlineMethod},
-  {CC"enqueueMethodForCompilation",
+  {CC"enqueueMethodForCompilation0",
       CC"(Ljava/lang/reflect/Executable;II)Z",        (void*)&WB_EnqueueMethodForCompilation},
+  {CC"enqueueInitializerForCompilation0",
+      CC"(Ljava/lang/Class;I)Z",                      (void*)&WB_EnqueueInitializerForCompilation},
   {CC"clearMethodState",
       CC"(Ljava/lang/reflect/Executable;)V",          (void*)&WB_ClearMethodState},
   {CC"markMethodProfiled",
@@ -1182,6 +1287,9 @@ static JNINativeMethod methods[] = {
                                                       (void*)&WB_CheckLibSpecifiesNoexecstack},
   {CC"isContainerized",           CC"()Z",            (void*)&WB_IsContainerized },
   {CC"printOsInfo",               CC"()V",            (void*)&WB_PrintOsInfo },
+  {CC"allocateCodeBlob",   CC"(II)J",                 (void*)&WB_AllocateCodeBlob },
+  {CC"freeCodeBlob",       CC"(J)V",                  (void*)&WB_FreeCodeBlob },
+  {CC"getCodeBlob",        CC"(J)[Ljava/lang/Object;",(void*)&WB_GetCodeBlob },
 };
 
 #undef CC

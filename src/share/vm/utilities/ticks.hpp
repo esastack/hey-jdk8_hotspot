@@ -25,161 +25,225 @@
 #ifndef SHARE_VM_UTILITIES_TICKS_HPP
 #define SHARE_VM_UTILITIES_TICKS_HPP
 
+#include "jni.h"
 #include "memory/allocation.hpp"
-#include "utilities/globalDefinitions.hpp"
+#include "utilities/macros.hpp"
 
-class TimeInstant {
- protected:
-  jlong _instant;
+// Time sources
+class ElapsedCounterSource {
  public:
-  TimeInstant(jlong stamp = 0) : _instant(stamp) {}
-  TimeInstant& operator+=(const TimeInstant& rhs) {
-    _instant += rhs.value();
-    return *this;
-  }
-  TimeInstant& operator-=(const TimeInstant& rhs) {
-    _instant -= rhs.value();
-    return *this;
-  }
-  bool operator==(const TimeInstant& rhs) const {
-    return _instant == rhs.value();
-  }
-  bool operator!=(const TimeInstant& rhs) const {
-    return _instant != rhs.value();
-  }
-  bool operator>(const TimeInstant& rhs) const {
-    return _instant > rhs.value();
-  }
-  bool operator<(const TimeInstant& rhs) const {
-    return _instant < rhs.value();
-  }
-  bool operator>=(const TimeInstant& rhs) const {
-    return _instant >= rhs.value();
-  }
-  bool operator<=(const TimeInstant& rhs) const {
-    return _instant <= rhs.value();
-  }
-  operator jlong() const { return _instant; }
-
-  jlong value() const { return _instant; }
-};
-
-template <typename InstantType>
-class TimeInterval {
- private:
-  InstantType _interval;
- public:
-  TimeInterval(jlong interval = 0) : _interval(interval) {}
-  TimeInterval(const InstantType& end, const InstantType& start) : _interval(end - start) {}
-  const InstantType& get() const { return _interval; }
-  
-  InstantType now() { return InstantType::now(); }
-  double seconds() { return InstantType::seconds(_interval); }
-  uint64_t milliseconds() { return InstantType::milliseconds(_interval); }
-  uint64_t microseconds() { return InstantType::microseconds(_interval); }
-  uint64_t nanoseconds() { return InstantType::nanoseconds(_interval); }
-  jlong value() const { return _interval; }
-  
-  TimeInterval<InstantType>& operator+=(const TimeInterval<InstantType>& rhs) {
-    _interval += rhs.get();
-    return *this;
-  }
-  TimeInterval<InstantType>& operator-=(const TimeInterval<InstantType>& rhs) {
-    _interval -= rhs.get();
-    return *this;
-  }
-};
-
-class ElapsedCounter : public TimeInstant {
- public:
-  ElapsedCounter(jlong stamp = 0) : TimeInstant(stamp) {}
-  ElapsedCounter& operator+=(const ElapsedCounter& rhs) {
-    _instant += rhs.value();
-    return *this;
-  }
-  ElapsedCounter& operator-=(const ElapsedCounter& rhs) {
-    _instant -= rhs.value();
-    return *this;
-  }
-  void stamp();
-  
-  static ElapsedCounter now();
+  typedef jlong Type;
   static uint64_t frequency();
-  static double seconds(const ElapsedCounter& value);
-  static uint64_t milliseconds(const ElapsedCounter& value);
-  static uint64_t microseconds(const ElapsedCounter& value);
-  static uint64_t nanoseconds(const ElapsedCounter& value);
+  static Type now();
+  static double seconds(Type value);
+  static uint64_t milliseconds(Type value);
+  static uint64_t microseconds(Type value);
+  static uint64_t nanoseconds(Type value);
 };
 
-class ElapsedCounterStamped : public ElapsedCounter {
+// Not guaranteed to be synchronized across hardware threads and
+// therefore software threads, and can be updated asynchronously
+// by software. now() can jump backwards as well as jump forward
+// when threads query different cores/sockets.
+// Very much not recommended for general use. Caveat emptor.
+class FastUnorderedElapsedCounterSource {
  public:
-  ElapsedCounterStamped();
-};
-
-class FastElapsedCounter : public TimeInstant {
- public:
-  FastElapsedCounter(jlong stamp = 0) : TimeInstant(stamp) {}
-  FastElapsedCounter& operator+=(const FastElapsedCounter& rhs) {
-    _instant += rhs.value();
-    return *this;
-  }
-  FastElapsedCounter& operator-=(const FastElapsedCounter& rhs) {
-    _instant -= rhs.value();
-    return *this;
-  }
-  void stamp();
-  
-  static FastElapsedCounter now();
+  typedef jlong Type;
   static uint64_t frequency();
-  static double seconds(const FastElapsedCounter& value);
-  static uint64_t milliseconds(const FastElapsedCounter& value);
-  static uint64_t microseconds(const FastElapsedCounter& value);
-  static uint64_t nanoseconds(const FastElapsedCounter& value);
+  static Type now();
+  static double seconds(Type value);
+  static uint64_t milliseconds(Type value);
+  static uint64_t microseconds(Type value);
+  static uint64_t nanoseconds(Type value);
 };
 
-class FastElapsedCounterStamped : public FastElapsedCounter {
+template <typename T1, typename T2>
+class PairRep {
  public:
-  FastElapsedCounterStamped();
+  T1 val1;
+  T2 val2;
+
+  PairRep() : val1((T1)0), val2((T2)0) {}
+  void operator+=(const PairRep& rhs) {
+    val1 += rhs.val1;
+    val2 += rhs.val2;
+  }
+  void operator-=(const PairRep& rhs) {
+    val1 -= rhs.val1;
+    val2 -= rhs.val2;
+  }
+  bool operator==(const PairRep& rhs) const {
+    return val1 == rhs.val1;
+  }
+  bool operator!=(const PairRep& rhs) const {
+    return !operator==(rhs);
+  }
+  bool operator<(const PairRep& rhs) const {
+    return val1 < rhs.val1;
+  }
+  bool operator>(const PairRep& rhs) const {
+    return val1 > rhs.val1;
+  }
 };
 
-typedef TimeInterval<ElapsedCounter> ElapsedCounterInterval;
-typedef TimeInterval<FastElapsedCounter> FastElapsedCounterInterval;
+template <typename T1, typename T2>
+PairRep<T1, T2> operator-(const PairRep<T1, T2>& lhs, const PairRep<T1, T2>& rhs) {
+  PairRep<T1, T2> temp(lhs);
+  temp -= rhs;
+  return temp;
+}
 
-class Ticks;
+typedef PairRep<ElapsedCounterSource::Type, FastUnorderedElapsedCounterSource::Type> CompositeTime;
 
-class Tickspan {
-  friend Tickspan operator-(const Ticks& end, const Ticks& start);
- private:
-  ElapsedCounterInterval _elapsed_interval;
-  FastElapsedCounterInterval _ft_elapsed_interval;
-  Tickspan(const Ticks& end, const Ticks& start);
+class CompositeElapsedCounterSource {
  public:
-  Tickspan(jlong interval = 0);
-  Tickspan& operator+=(const Tickspan& rhs);
-  Tickspan& operator-=(const Tickspan& rhs);
-
-  jlong value() const { return _elapsed_interval.value(); }
-  jlong ft_value() const;
+  typedef CompositeTime Type;
+  static uint64_t frequency();
+  static Type now();
+  static double seconds(Type value);
+  static uint64_t milliseconds(Type value);
+  static uint64_t microseconds(Type value);
+  static uint64_t nanoseconds(Type value);
 };
 
-class Ticks {
+template <typename TimeSource>
+class Representation {
+ public:
+  typedef typename TimeSource::Type Type;
  protected:
-  ElapsedCounter _elapsed;
-  X86_ONLY(FastElapsedCounter _ft_elapsed;)
+  Type _rep;
+  Representation(const Representation<TimeSource>& end, const Representation<TimeSource>& start) : _rep(end._rep - start._rep) {}
+  Representation() : _rep() {}
  public:
-  Ticks(jlong stamp = 0);
-  Ticks& operator+=(const Tickspan& rhs);
-  Ticks& operator-=(const Tickspan& rhs);
-
-  static Ticks now();
-  void stamp();
-  jlong value() const { return _elapsed.value(); }
-  jlong ft_value() const;
+  void operator+=(const Representation<TimeSource>& rhs) {
+    _rep += rhs._rep;
+  }
+  void operator-=(const Representation<TimeSource>& rhs) {
+    _rep -= rhs._rep;
+  }
+  bool operator==(const Representation<TimeSource>& rhs) const {
+    return _rep == rhs._rep;
+  }
+  bool operator!=(const Representation<TimeSource>& rhs) const {
+    return !operator==(rhs);
+  }
+  bool operator<(const Representation<TimeSource>& rhs) const {
+    return _rep < rhs._rep;
+  }
+  bool operator>(const Representation<TimeSource>& rhs) const {
+    return _rep > rhs._rep;
+  }
+  bool operator<=(const Representation<TimeSource>& rhs) const {
+    return !operator>(rhs);
+  }
+  bool operator>=(const Representation<TimeSource>& rhs) const {
+    return !operator<(rhs);
+  }
+  double seconds() const {
+    return TimeSource::seconds(_rep);
+  }
+  uint64_t milliseconds() const {
+    return TimeSource::milliseconds(_rep);
+  }
+  uint64_t microseconds() const {
+    return TimeSource::microseconds(_rep);
+  }
+  uint64_t nanoseconds() const {
+    return TimeSource::nanoseconds(_rep);
+  }
 };
 
-class TicksStamped : public Ticks {
+template <typename TimeSource>
+class CounterRepresentation : public Representation<TimeSource> {
+ protected:
+  CounterRepresentation(const CounterRepresentation& end, const CounterRepresentation& start) : Representation<TimeSource>(end, start) {}
+  explicit CounterRepresentation(jlong value) : Representation<TimeSource>() {
+    this->_rep = value;
+  }
  public:
-  TicksStamped();
+  CounterRepresentation() : Representation<TimeSource>() {}
+  typename TimeSource::Type value() const { return this->_rep; }
+  operator typename TimeSource::Type() { return value(); }
 };
+
+template <typename TimeSource>
+class CompositeCounterRepresentation : public Representation<TimeSource> {
+ protected:
+  CompositeCounterRepresentation(const CompositeCounterRepresentation& end, const CompositeCounterRepresentation& start) :
+    Representation<TimeSource>(end, start) {}
+  explicit CompositeCounterRepresentation(jlong value) : Representation<TimeSource>() {
+    this->_rep.val1 = value;
+    this->_rep.val2 = value;
+  }
+ public:
+  CompositeCounterRepresentation() : Representation<TimeSource>() {}
+  ElapsedCounterSource::Type value() const { return this->_rep.val1; }
+  FastUnorderedElapsedCounterSource::Type ft_value() const { return this->_rep.val2; }
+};
+
+template <template <typename> class, typename>
+class TimeInstant;
+
+template <template <typename> class Rep, typename TimeSource>
+class TimeInterval : public Rep<TimeSource> {
+  template <template <typename> class, typename>
+  friend class TimeInstant;
+  TimeInterval(const TimeInstant<Rep, TimeSource>& end, const TimeInstant<Rep, TimeSource>& start) : Rep<TimeSource>(end, start) {}
+ public:
+  TimeInterval() : Rep<TimeSource>() {}
+  TimeInterval<Rep, TimeSource> operator+(const TimeInterval<Rep, TimeSource>& rhs) const {
+    TimeInterval<Rep, TimeSource> temp(*this);
+    temp += rhs;
+    return temp;
+  }
+  TimeInterval<Rep, TimeSource> operator-(const TimeInterval<Rep, TimeSource>& rhs) const {
+    TimeInterval<Rep, TimeSource> temp(*this);
+    temp -= rhs;
+    return temp;
+  }
+};
+
+template <template <typename> class Rep, typename TimeSource>
+class TimeInstant : public Rep<TimeSource> {
+ public:
+  TimeInstant() : Rep<TimeSource>() {}
+  TimeInstant<Rep, TimeSource>& operator+=(const TimeInterval<Rep, TimeSource>& rhs) {
+    Rep<TimeSource>::operator+=(rhs);
+    return *this;
+  }
+  TimeInstant<Rep, TimeSource>& operator-=(const TimeInterval<Rep, TimeSource>& rhs) {
+    Rep<TimeSource>::operator-=(rhs);
+    return *this;
+  }
+  TimeInterval<Rep, TimeSource> operator+(const TimeInstant<Rep, TimeSource>& end) const {
+    return TimeInterval<Rep, TimeSource>(end, *this);
+  }
+  TimeInterval<Rep, TimeSource> operator-(const TimeInstant<Rep, TimeSource>& start) const {
+    return TimeInterval<Rep, TimeSource>(*this, start);
+  }
+  void stamp() {
+    this->_rep = TimeSource::now();
+  }
+  static TimeInstant<Rep, TimeSource> now() {
+    TimeInstant<Rep, TimeSource> temp;
+    temp.stamp();
+    return temp;
+  }
+ private:
+  TimeInstant(jlong ticks) : Rep<TimeSource>(ticks) {}
+  friend class GranularTimer;
+  friend class ObjectSample;
+  //  GC VM tests
+  friend class TimePartitionPhasesIteratorTest;
+  friend class GCTimerTest;
+};
+
+#if INCLUDE_JFR
+typedef TimeInstant<CompositeCounterRepresentation, CompositeElapsedCounterSource> Ticks;
+typedef TimeInterval<CompositeCounterRepresentation, CompositeElapsedCounterSource> Tickspan;
+#else
+typedef TimeInstant<CounterRepresentation, ElapsedCounterSource> Ticks;
+typedef TimeInterval<CounterRepresentation, ElapsedCounterSource> Tickspan;
+#endif
 
 #endif // SHARE_VM_UTILITIES_TICKS_HPP

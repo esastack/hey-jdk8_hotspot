@@ -26,11 +26,10 @@
 #include "gc_implementation/shared/ageTableTracer.hpp"
 #include "jfr/jfrEvents.hpp"
 
-void AgeTableTracer::send_tenuring_distribution_event(uint age, size_t size) {
+void AgeTableTracer::send_tenuring_distribution_event(uint age, size_t size, GCTracer &tracer) {
   EventTenuringDistribution e;
   if (e.should_commit()) {
-    // FIXME gc id.
-    e.set_gcId(GCId::peek().id() - 1);
+    e.set_gcId(tracer.gc_id().id());
     e.set_age(age);
     e.set_size(size);
     e.commit();

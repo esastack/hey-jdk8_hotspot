@@ -58,14 +58,14 @@ class ObjectSampler : public CHeapObj<mtTracing> {
   explicit ObjectSampler(size_t size);
   ~ObjectSampler();
 
-  void add(HeapWord* object, size_t size, JavaThread* thread);
   void remove_dead(ObjectSample* sample);
   void scavenge();
 
   // Called by GC
   void oops_do(BoolObjectClosure* is_alive, OopClosure* f);
+  void add(HeapWord* object, size_t size, JavaThread* thread);
 
- public:
+public:
   const ObjectSample* item_at(int index) const;
   ObjectSample* item_at(int index);
   int item_count() const;

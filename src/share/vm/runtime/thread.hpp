@@ -196,7 +196,7 @@ class Thread: public ThreadShadow {
     _has_async_exception    = 0x00000001U, // there is a pending async exception
     _critical_native_unlock = 0x00000002U, // Must call back to unlock JNI critical lock
       
-    _trace_flag             = 0x00000004U  // call tracing backend
+    _trace_flag             = 0x00000004U  // call jfr backend
   };
 
   // various suspension related flags - atomically updated
@@ -1228,7 +1228,7 @@ class JavaThread: public Thread {
     // we have checked is_external_suspend(), we will recheck its value
     // under SR_lock in java_suspend_self().
     return (_special_runtime_exit_condition != _no_async_condition) ||
-            is_external_suspend() || is_deopt_suspend() || is_trace_suspend();
+            is_external_suspend() || is_deopt_suspend();
   }
 
   void set_pending_unsafe_access_error()          { _special_runtime_exit_condition = _async_unsafe_access_error; }

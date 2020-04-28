@@ -78,6 +78,16 @@ void JfrThreadLocal::set_dead() {
   _dead = true;
 }
 
+void JfrThreadLocal::on_start(JavaThread* t) {
+  assert(t != NULL, "invariant");
+  assert(Thread::current() == t, "invariant");
+  if (JfrRecorder::is_recording()) {
+    EventThreadStart event;
+    event.set_thread(t->jfr_thread_local()->thread_id());
+    event.commit();
+  }
+}
+
 void JfrThreadLocal::on_exit(JavaThread* thread) {
   if (JfrRecorder::is_recording()) {
     JfrCheckpointManager::write_thread_checkpoint(thread);

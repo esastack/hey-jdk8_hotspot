@@ -1197,6 +1197,7 @@ bool BCEscapeAnalyzer::compute_escape_for_intrinsic(vmIntrinsics::ID iid) {
   switch (iid) {
   case vmIntrinsics::_getClass:
     _return_local = false;
+    _return_allocated = false;
     break;
   case vmIntrinsics::_fillInStackTrace:
     arg.set(0); // 'this'
@@ -1279,7 +1280,7 @@ void BCEscapeAnalyzer::compute_escape_info() {
   vmIntrinsics::ID iid = known_intrinsic();
 
   // check if method can be analyzed
-  if (iid ==  vmIntrinsics::_none && (method()->is_abstract() || method()->is_native() || !method()->holder()->is_initialized()
+  if (iid == vmIntrinsics::_none && (method()->is_abstract() || method()->is_native() || !method()->holder()->is_initialized()
       || _level > MaxBCEAEstimateLevel
       || method()->code_size() > MaxBCEAEstimateSize)) {
     if (BCEATraceLevel >= 1) {

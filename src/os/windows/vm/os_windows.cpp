@@ -4872,6 +4872,40 @@ void os::pause() {
   }
 }
 
+Thread* os::ThreadCrashProtection::_protected_thread = NULL;
+os::ThreadCrashProtection* os::ThreadCrashProtection::_crash_protection = NULL;
+volatile intptr_t os::ThreadCrashProtection::_crash_mux = 0;
+
+os::ThreadCrashProtection::ThreadCrashProtection() {
+}
+
+// See the caveats for this class in os_windows.hpp
+// Protects the callback call so that raised OS EXCEPTIONS causes a jump back
+// into this method and returns false. If no OS EXCEPTION was raised, returns
+// true.
+// The callback is supposed to provide the method that should be protected.
+//
+bool os::ThreadCrashProtection::call(os::CrashProtectionCallback& cb) {
+
+  Thread::muxAcquire(&_crash_mux, "CrashProtection");
+
+  _protected_thread = ThreadLocalStorage::thread();
+  assert(_protected_thread != NULL, "Cannot crash protect a NULL thread");
+
+  bool success = true;
+  __try {
+    _crash_protection = this;
+    cb.call();
+  } __except(EXCEPTION_EXECUTE_HANDLER) {
+    // only for protection, nothing to do
+    success = false;
+  }
+  _crash_protection = NULL;
+  _protected_thread = NULL;
+  Thread::muxRelease(&_crash_mux);
+  return success;
+}
+
 os::WatcherThreadCrashProtection::WatcherThreadCrashProtection() {
   assert(Thread::current()->is_Watcher_thread(), "Must be WatcherThread");
 }

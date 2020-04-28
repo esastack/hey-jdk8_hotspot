@@ -187,18 +187,18 @@ bool JfrRecorder::on_vm_start() {
   if (!register_jfr_dcmds()) {
     return false;
   }
-
+  
   if (!validate_recording_options(thread)) {
     return false;
   }
+  
+  // Don't start chunkwriter here.
   if (!JfrOptionSet::configure(thread)) {
     return false;
   }
-
   if (!is_enabled()) {
     return true;
   }
-
   return launch_recordings(thread);
 }
 

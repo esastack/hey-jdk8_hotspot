@@ -122,7 +122,9 @@ class LogImpl {
   LogImpl() {}
 
   static bool is_level(LogLevelType level) {
-    if (level == (jint)LogLevel::Error) {
+    // TODO For debug case.
+//    return true;
+    if (level >= (jint)LogLevel::Info) {
       return true;
     }
 

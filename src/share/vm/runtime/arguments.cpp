@@ -64,6 +64,9 @@
 #include "gc_implementation/g1/g1CollectedHeap.inline.hpp"
 #include "gc_implementation/parallelScavenge/parallelScavengeHeap.hpp"
 #endif // INCLUDE_ALL_GCS
+#if INCLUDE_JFR
+#include "jfr/jfr.hpp"
+#endif
 
 // Note: This is a special bug reporting site for the JVM
 #ifdef VENDOR_URL_VM_BUG
@@ -154,6 +157,20 @@ static bool match_option(const JavaVMOption *option, const char* name,
     return false;
   }
 }
+
+#if INCLUDE_JFR
+// return true on failure
+static bool match_jfr_option(const JavaVMOption** option) {
+  assert((*option)->optionString != NULL, "invariant");
+  char* tail = NULL;
+  if (match_option(*option, "-XX:StartFlightRecording", (const char**)&tail)) {
+    return Jfr::on_start_flight_recording_option(option, tail);
+  } else if (match_option(*option, "-XX:FlightRecorderOptions", (const char**)&tail)) {
+    return Jfr::on_flight_recorder_option(option, tail);
+  }
+  return false;
+}
+#endif
 
 static void logOption(const char* opt) {
   if (PrintVMOptions) {
@@ -3399,6 +3416,10 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args,
           "ManagementServer is not supported in this VM.\n");
         return JNI_ERR;
 #endif // INCLUDE_MANAGEMENT
+#if INCLUDE_JFR
+    } else if (match_jfr_option(&option)) {
+      return JNI_EINVAL;
+#endif
     } else if (match_option(option, "-XX:", &tail)) { // -XX:xxxx
       // Skip -XX:Flags= since that case has already been handled
       if (strncmp(tail, "Flags=", strlen("Flags=")) != 0) {

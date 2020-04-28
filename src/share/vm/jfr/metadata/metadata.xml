@@ -829,6 +829,14 @@
     <Field type="ulong" contentType="bytes" name="totalSize" label="Total Size" />
   </Event>
 
+  <Event name="G1HeapRegionInformation" category="Java Virtual Machine, GC, Detailed" label="G1 Heap Region Information" description="Information about a specific heap region in the G1 GC"                                                                                  
+    period="everyChunk">
+    <Field type="uint" name="index" label="Index" />
+    <Field type="G1HeapRegionType" name="type" label="Type" />
+    <Field type="ulong" contentType="address" name="start" label="Start" />
+    <Field type="ulong" contentType="bytes" name="used" label="Used" />
+  </Event>
+
   <Event name="GCConfiguration" category="Java Virtual Machine, GC, Configuration" label="GC Configuration" description="The configuration of the garbage collector"
     period="endChunk">
     <Field type="GCName" name="youngCollector" label="Young Garbage Collector" description="The garbage collector used for the young generation" />
@@ -923,9 +931,15 @@
     <Field type="string" name="name" label="Name" />
   </Type>
 
+  <Type name="Package" label="Package">                                                                                   
+    <Field type="Symbol" name="name" label="Name" />
+    <Field type="boolean" name="exported" label="Exported" />
+  </Type>
+
   <Type name="Class" label="Java Class">
     <Field type="ClassLoader" name="classLoader" label="Class Loader" />
     <Field type="Symbol" name="name" label="Name" />
+    <Field type="Package" name="package" label="Package" />
     <Field type="int" name="modifiers" label="Access Modifiers" />
   </Type>
 
@@ -1070,6 +1084,7 @@
   <Relation name="CompileId" />
   <Relation name="SweepId"/>
  
+  <XmlType name="Package" parameterType="const PackageEntry*" fieldType="const PackageEntry*"/>
   <XmlType name="Class" javaType="java.lang.Class" parameterType="const Klass*" fieldType="const Klass*"/> 
   <XmlType name="ClassLoader" parameterType="const ClassLoaderData*" fieldType="const ClassLoaderData*"/> 
   <XmlType name="Method" parameterType="const Method*" fieldType="const Method*"/> 

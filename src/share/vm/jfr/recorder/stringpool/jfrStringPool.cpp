@@ -180,7 +180,7 @@ typedef ReleaseOp<JfrStringPoolMspace> StringPoolReleaseOperation;
 typedef CompositeOperation<ExclusiveWriteOperation, StringPoolReleaseOperation> StringPoolWriteOperation;
 typedef CompositeOperation<ExclusiveDiscardOperation, StringPoolReleaseOperation> StringPoolDiscardOperation;
 
-size_t JfrStringPool::write() {
+size_t JfrStringPool::write() {  
   Thread* const thread = Thread::current();
   WriteOperation wo(_chunkwriter, thread);
   ExclusiveWriteOperation ewo(wo);
@@ -191,7 +191,7 @@ size_t JfrStringPool::write() {
   return wo.processed();
 }
 
-size_t JfrStringPool::write_at_safepoint() {
+size_t JfrStringPool::write_at_safepoint() {  
   assert(SafepointSynchronize::is_at_safepoint(), "invariant");
   return write();
 }

@@ -37,7 +37,7 @@
 #include "services/diagnosticArgument.hpp"
 #include "services/diagnosticFramework.hpp"
 #include "utilities/globalDefinitions.hpp"
-
+#include "jfr/utilities/jfrLog.hpp"
 #ifdef _WINDOWS
 #define JFR_FILENAME_EXAMPLE "C:\\Users\\user\\My Recording.jfr"
 #endif
@@ -404,7 +404,7 @@ void JfrStartFlightRecordingDCmd::execute(DCmdSource source, TRAPS) {
 
   jobject maxsize = NULL;
   if (_maxsize.is_set()) {
-    maxsize = JfrJavaSupport::new_java_lang_Long(_maxsize.value()._size, CHECK);
+    maxsize = JfrJavaSupport::new_java_lang_Long(_maxsize.value()._size, CHECK); 
   }
 
   jobject duration = NULL;

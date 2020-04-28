@@ -32,7 +32,6 @@
 #if INCLUDE_SERVICES
 
 class KlassInfoEntry;
-class Ticks;
 
 class ObjectCountEventSender : public AllStatic {
 
@@ -40,7 +39,7 @@ class ObjectCountEventSender : public AllStatic {
   static bool _should_send_requestable_event;
 
   template <typename T>
-  static void send_event_if_enabled(Klass* klass,  GCId gc_id, jlong count, julong size, const Ticks& timestamp);
+  static void send_event_if_enabled(Klass* klass, GCId gc_id, jlong count, julong size, const Ticks& timestamp);
  public:
   static void enable_requestable_event();
   static void disable_requestable_event();

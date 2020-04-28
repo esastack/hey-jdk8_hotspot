@@ -37,7 +37,9 @@
 #include "runtime/stubRoutines.hpp"
 #include "runtime/thread.inline.hpp"
 #include "services/threadService.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "jfr/support/jfrThreadId.hpp"
+#include "jfr/support/jfrFlush.hpp"
 #include "utilities/dtrace.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/preserveException.hpp"
@@ -993,11 +995,13 @@ void ATTR ObjectMonitor::exit(bool not_suspended, TRAPS) {
       _Responsible = NULL ;
    }
 
+#if INCLUDE_JFR
    // get the owner's thread id for the MonitorEnter event
    // if it is enabled and the thread isn't suspended
    if (not_suspended && EventJavaMonitorEnter::is_enabled()) {
      _previous_owner_tid = JFR_THREAD_ID(Self);
    }
+#endif
    
    for (;;) {
       assert (THREAD == _owner, "invariant") ;
@@ -1722,7 +1726,7 @@ void ObjectMonitor::notify(TRAPS) {
      }
      iterator->_notified = 1 ;
      Thread * Self = THREAD;
-     iterator->_notifier_tid = Self->osthread()->thread_id();
+     iterator->_notifier_tid = JFR_THREAD_ID(Self);
 
      ObjectWaiter * List = _EntryList ;
      if (List != NULL) {
@@ -1848,7 +1852,7 @@ void ObjectMonitor::notifyAll(TRAPS) {
      guarantee (iterator->_notified == 0, "invariant") ;
      iterator->_notified = 1 ;
      Thread * Self = THREAD;
-     iterator->_notifier_tid = Self->osthread()->thread_id();
+     iterator->_notifier_tid = JFR_THREAD_ID(Self);
      if (Policy != 4) {
         iterator->TState = ObjectWaiter::TS_ENTER ;
      }

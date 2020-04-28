@@ -113,7 +113,7 @@ int write__artifact__klass(JfrCheckpointWriter* writer, JfrArtifactSet* artifact
   if (theklass->oop_is_instance()) {
     // TODO package number.
   } else {
-    assert(theklass->is_typeArray_klass(), "invariant");
+    assert(theklass->oop_is_typeArray(), "invariant");
   }
   const traceid symbol_id = artifacts->mark(klass);
   assert(symbol_id > 0, "need to have an address for symbol!");
@@ -168,8 +168,8 @@ int write__artifact__classloader(JfrCheckpointWriter* writer, JfrArtifactSet* ar
     writer->write((traceid)0);  // class loader type id (absence of)
     writer->write((traceid)CREATE_SYMBOL_ID(1)); // 1 maps to synthetic name -> "bootstrap"
   } else {
-    Symbol* symbol_name = NULL;
     KlassPtr class_loader_klass = class_loader_oop->klass();
+    Symbol* symbol_name = class_loader_klass->name() ; // XXX TODO cld->name()
     const traceid symbol_name_id = symbol_name != NULL ? artifacts->mark(symbol_name) : 0;
     writer->write(cld_id); // class loader instance id
     writer->write(TRACE_ID(class_loader_klass)); // class loader type id

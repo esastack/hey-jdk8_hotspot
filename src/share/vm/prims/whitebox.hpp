@@ -64,6 +64,8 @@ class WhiteBox : public AllStatic {
     Symbol* signature_symbol);
   static const char* lookup_jstring(const char* field_name, oop object);
   static bool lookup_bool(const char* field_name, oop object);
+  static CodeBlob* allocate_code_blob(int size, int blob_type);
+  static int get_blob_type(const CodeBlob* code);
 
   static int array_bytes_to_length(size_t bytes);
   static void register_methods(JNIEnv* env, jclass wbclass, JavaThread* thread,

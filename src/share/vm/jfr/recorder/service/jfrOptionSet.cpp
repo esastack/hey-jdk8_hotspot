@@ -146,6 +146,7 @@ void JfrOptionSet::set_sample_protection(jboolean protection) {
 bool JfrOptionSet::compressed_integers() {
   // Set this to false for debugging purposes.
   return true;
+//  return false;
 }
 
 bool JfrOptionSet::allow_retransforms() {
@@ -424,23 +425,25 @@ static void log_set_value(Argument& memory_argument) {
 
 template <typename MemoryArg>
 static void log_adjustments(MemoryArg& original_memory_size, julong new_memory_size, const char* msg) {
-  log_trace(arguments) (
-    "%s size (original) " JULONG_FORMAT " B (user defined: %s)",
-    msg,
-    original_memory_size.value()._size,
-    original_memory_size.is_set() ? "true" : "false");
-  log_trace(arguments) (
-    "%s size (adjusted) " JULONG_FORMAT " B (modified: %s)",
-    msg,
-    new_memory_size,
-    original_memory_size.value()._size != new_memory_size ? "true" : "false");
-  log_trace(arguments) (
-    "%s size (adjustment) %s" JULONG_FORMAT " B",
-    msg,
-    new_memory_size < original_memory_size.value()._size ? "-" : "+",
-    new_memory_size < original_memory_size.value()._size ?
-    original_memory_size.value()._size - new_memory_size :
-    new_memory_size - original_memory_size.value()._size);
+  if (Verbose) {
+    log_trace(arguments) (
+      "%s size (original) " JULONG_FORMAT " B (user defined: %s)",
+      msg,
+      original_memory_size.value()._size,
+      original_memory_size.is_set() ? "true" : "false");
+    log_trace(arguments) (
+      "%s size (adjusted) " JULONG_FORMAT " B (modified: %s)",
+      msg,
+      new_memory_size,
+      original_memory_size.value()._size != new_memory_size ? "true" : "false");
+    log_trace(arguments) (
+      "%s size (adjustment) %s" JULONG_FORMAT " B",
+      msg,
+      new_memory_size < original_memory_size.value()._size ? "-" : "+",
+      new_memory_size < original_memory_size.value()._size ?
+      original_memory_size.value()._size - new_memory_size :
+      new_memory_size - original_memory_size.value()._size);
+  }
 }
 
 // All "triangular" options are explicitly set
@@ -551,15 +554,17 @@ static void post_process_adjusted_memory_options(const JfrMemoryOptions& options
   log_adjustments(_dcmd_memorysize, options.memory_size, "Memory");
   log_adjustments(_dcmd_globalbuffersize, options.global_buffer_size, "Global buffer");
   log_adjustments(_dcmd_threadbuffersize, options.thread_buffer_size, "Thread local buffer");
-  log_trace(arguments) ("Number of global buffers (original) " JLONG_FORMAT " (user defined: %s)",
-    _dcmd_numglobalbuffers.value(),
-    _dcmd_numglobalbuffers.is_set() ? "true" : "false");
-  log_trace(arguments) ( "Number of global buffers (adjusted) " JULONG_FORMAT " (modified: %s)",
-    options.buffer_count,
-    _dcmd_numglobalbuffers.value() != (jlong)options.buffer_count ? "true" : "false");
-  log_trace(arguments) ("Number of global buffers (adjustment) %s" JLONG_FORMAT,
-    (jlong)options.buffer_count < _dcmd_numglobalbuffers.value() ? "" : "+",
-    (jlong)options.buffer_count - _dcmd_numglobalbuffers.value());
+  if (Verbose) {
+    log_trace(arguments) ("Number of global buffers (original) " JLONG_FORMAT " (user defined: %s)",
+      _dcmd_numglobalbuffers.value(),
+      _dcmd_numglobalbuffers.is_set() ? "true" : "false");
+    log_trace(arguments) ( "Number of global buffers (adjusted) " JULONG_FORMAT " (modified: %s)",
+      options.buffer_count,
+      _dcmd_numglobalbuffers.value() != (jlong)options.buffer_count ? "true" : "false");
+    log_trace(arguments) ("Number of global buffers (adjustment) %s" JLONG_FORMAT,
+      (jlong)options.buffer_count < _dcmd_numglobalbuffers.value() ? "" : "+",
+      (jlong)options.buffer_count - _dcmd_numglobalbuffers.value());
+  }
 
   MemorySizeArgument adjusted_memory_size;
   adjusted_memory_size._val = divide_with_user_unit(_dcmd_memorysize, options.memory_size);

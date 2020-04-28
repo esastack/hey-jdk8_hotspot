@@ -44,6 +44,9 @@
 #include "gc_implementation/shared/gcTraceTime.hpp"
 #include "gc_implementation/shared/isGCActiveMark.hpp"
 #include "gc_interface/gcCause.hpp"
+#if INCLUDE_JFR
+#include "jfr/jfr.hpp"
+#endif
 #include "memory/gcLocker.inline.hpp"
 #include "memory/referencePolicy.hpp"
 #include "memory/referenceProcessor.hpp"
@@ -2415,7 +2418,7 @@ void PSParallelCompact::marking_phase(ParCompactionManager* cm,
 
   // This is the point where the entire marking should have completed.
   assert(cm->marking_stacks_empty(), "Marking should have completed");
-
+ 
   // Follow system dictionary roots and unload classes.
   bool purged_class = SystemDictionary::do_unloading(is_alive_closure());
 
@@ -2464,6 +2467,7 @@ void PSParallelCompact::adjust_roots() {
   // have been cleared if they pointed to non-surviving objects.)
   // Global (weak) JNI handles
   JNIHandles::weak_oops_do(adjust_pointer_closure());
+  JFR_ONLY(Jfr::weak_oops_do(adjust_pointer_closure()));
 
   CodeBlobToOopClosure adjust_from_blobs(adjust_pointer_closure(), CodeBlobToOopClosure::FixRelocations);
   CodeCache::blobs_do(&adjust_from_blobs);

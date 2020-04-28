@@ -176,7 +176,7 @@ void JfrJavaArguments::Parameters::copy(JavaCallArguments& args, TRAPS) const {
         args.push_oop(Handle(THREAD, (oop)values(i).get_jobject()));
         break;
       case T_ADDRESS:
-        args.push_jobject(values(i).get_jobject());
+        args.push_oop(Handle(THREAD, JNIHandles::resolve(values(i).get_jobject())));
         break;
       default:
         ShouldNotReachHere();

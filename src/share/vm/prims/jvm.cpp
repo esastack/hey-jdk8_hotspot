@@ -433,6 +433,15 @@ JVM_END
 
 extern volatile jint vm_created;
 
+JVM_ENTRY_NO_ENV(void, JVM_BeforeHalt())                                                                                               
+  JVMWrapper("JVM_BeforeHalt");
+  EventShutdown event;
+  if (event.should_commit()) {
+    event.set_reason("Shutdown requested from Java");
+    event.commit();
+  }
+JVM_END
+
 JVM_ENTRY_NO_ENV(void, JVM_Exit(jint code))
   if (vm_created != 0 && (code == 0)) {
     // The VM is about to exit. We call back into Java to check whether finalizers should be run

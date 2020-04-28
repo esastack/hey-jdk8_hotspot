@@ -3460,13 +3460,13 @@ bool GraphBuilder::try_inline_intrinsics(ciMethod* callee) {
       if (!InlineArrayCopy) return false;
       break;
 
-#ifdef TRACE_HAVE_INTRINSICS
-    case vmIntrinsics::_classID:
-    case vmIntrinsics::_threadID:
+#ifdef JFR_HAVE_INTRINSICS
+    case vmIntrinsics::_getClassId:
+    case vmIntrinsics::_getEventWriter:
       preserves_state = true;
       cantrap = true;
       break;
-
+    
     case vmIntrinsics::_counterTime:
       preserves_state = true;
       cantrap = false;

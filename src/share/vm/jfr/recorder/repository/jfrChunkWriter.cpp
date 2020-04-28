@@ -30,6 +30,7 @@
 #include "jfr/utilities/jfrTypes.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/os.hpp"
+#include "jfr/utilities/jfrLog.hpp"
 
 static const u2 JFR_VERSION_MAJOR = 2;
 static const u2 JFR_VERSION_MINOR = 0;

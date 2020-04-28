@@ -6260,7 +6260,7 @@ void CMSCollector::refProcessingWork(bool asynch, bool clear_all_soft_refs) {
 
   // This is the point where the entire marking should have completed.
   verify_work_stacks_empty();
-
+  
   if (should_unload_classes()) {
     {
       GCTraceTime t("class unloading", PrintGCDetails, false, _gc_timer_cm, _gc_tracer_cm->gc_id());

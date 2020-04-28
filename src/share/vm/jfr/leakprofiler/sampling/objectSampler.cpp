@@ -56,6 +56,7 @@ ObjectSampler::~ObjectSampler() {
 
 void ObjectSampler::add(HeapWord* obj, size_t allocated, JavaThread* thread) {
   assert(thread != NULL, "invariant");
+  assert(obj != NULL, "invariant")
   const traceid thread_id = thread->threadObj() != NULL ? thread->jfr_thread_local()->thread_id() : 0;
   if (thread_id == 0) {
     return;

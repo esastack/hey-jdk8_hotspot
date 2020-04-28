@@ -32,6 +32,10 @@
 #include "oops/method.hpp"
 #include "utilities/growableArray.hpp"
 
+// external name (synthetic) for the primordial "bootstrap" class loader instance
+#define BOOTSTRAP_LOADER_NAME "bootstrap"
+#define BOOTSTRAP_LOADER_NAME_LEN 9
+
 // Composite callback/functor building block
 template <typename T, typename Func1, typename Func2>
 class CompositeFunctor {

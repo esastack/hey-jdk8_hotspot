@@ -65,41 +65,36 @@
 #endif
 
 template <typename TimeSource, const int unit>
-inline double conversion(const TimeSource& value) {
+inline double conversion(typename TimeSource::Type& value) {
   return (double)value * ((double)unit / (double)TimeSource::frequency());
 }
 
-uint64_t ElapsedCounter::frequency() {
+uint64_t ElapsedCounterSource::frequency() {
   static const uint64_t freq = (uint64_t)os::elapsed_frequency();
   return freq;
 }
 
-ElapsedCounterStamped::ElapsedCounterStamped() : ElapsedCounter(os::elapsed_counter()) {}
-
-void ElapsedCounter::stamp() {
-  _instant = now().value();
+ElapsedCounterSource::Type ElapsedCounterSource::now() {
+  return os::elapsed_counter();
 }
 
-ElapsedCounter ElapsedCounter::now() {
-  return ElapsedCounterStamped();
+double ElapsedCounterSource::seconds(Type value) {
+  return conversion<ElapsedCounterSource, 1>(value);
 }
 
-double ElapsedCounter::seconds(const ElapsedCounter& value) {
-  return conversion<ElapsedCounter, 1>(value);
-}
-uint64_t ElapsedCounter::milliseconds(const ElapsedCounter& value) {
-  return (uint64_t)conversion<ElapsedCounter, MILLIUNITS>(value);
+uint64_t ElapsedCounterSource::milliseconds(Type value) {
+  return (uint64_t)conversion<ElapsedCounterSource, MILLIUNITS>(value);
 }
 
-uint64_t ElapsedCounter::microseconds(const ElapsedCounter& value) {
-  return (uint64_t)conversion<ElapsedCounter, MICROUNITS>(value);
+uint64_t ElapsedCounterSource::microseconds(Type value) {
+  return (uint64_t)conversion<ElapsedCounterSource, MICROUNITS>(value);
 }
 
-uint64_t ElapsedCounter::nanoseconds(const ElapsedCounter& value) {
-  return (uint64_t)conversion<ElapsedCounter, NANOUNITS>(value);
+uint64_t ElapsedCounterSource::nanoseconds(Type value) {
+  return (uint64_t)conversion<ElapsedCounterSource, NANOUNITS>(value);
 }
 
-uint64_t FastElapsedCounter::frequency() {
+uint64_t FastUnorderedElapsedCounterSource::frequency() {
 #if defined(X86) && !defined(ZERO)
   static bool valid_rdtsc = Rdtsc::initialize();
   if (valid_rdtsc) {
@@ -111,107 +106,65 @@ uint64_t FastElapsedCounter::frequency() {
   return freq;
 }
 
-#ifdef X86
-FastElapsedCounterStamped::FastElapsedCounterStamped() : FastElapsedCounter(Rdtsc::elapsed_counter()) {}
-#else
-FastElapsedCounterStamped::FastElapsedCounterStamped() : FastElapsedCounter(os::elapsed_counter()) {}
+FastUnorderedElapsedCounterSource::Type FastUnorderedElapsedCounterSource::now() {
+#if defined(X86) && !defined(ZERO)
+  static bool valid_rdtsc = Rdtsc::initialize();
+  if (valid_rdtsc) {
+    return Rdtsc::elapsed_counter();
+  }
 #endif
-
-void FastElapsedCounter::stamp() {
-  _instant = now().value();
+  return os::elapsed_counter();
 }
 
-FastElapsedCounter FastElapsedCounter::now() {
-  return FastElapsedCounterStamped();
+double FastUnorderedElapsedCounterSource::seconds(Type value) {
+  return conversion<FastUnorderedElapsedCounterSource, 1>(value);
 }
 
-double FastElapsedCounter::seconds(const FastElapsedCounter& value) {
-  return conversion<FastElapsedCounter, 1>(value);
-}
-uint64_t FastElapsedCounter::milliseconds(const FastElapsedCounter& value) {
-  return (uint64_t)conversion<FastElapsedCounter, MILLIUNITS>(value);
+uint64_t FastUnorderedElapsedCounterSource::milliseconds(Type value) {
+  return (uint64_t)conversion<FastUnorderedElapsedCounterSource, MILLIUNITS>(value);
 }
 
-uint64_t FastElapsedCounter::microseconds(const FastElapsedCounter& value) {
-  return (uint64_t)conversion<FastElapsedCounter, MICROUNITS>(value);
+uint64_t FastUnorderedElapsedCounterSource::microseconds(Type value) {
+  return (uint64_t)conversion<FastUnorderedElapsedCounterSource, MICROUNITS>(value);
 }
 
-uint64_t FastElapsedCounter::nanoseconds(const FastElapsedCounter& value) {
-  return (uint64_t)conversion<FastElapsedCounter, NANOUNITS>(value);
+uint64_t FastUnorderedElapsedCounterSource::nanoseconds(Type value) {
+  return (uint64_t)conversion<FastUnorderedElapsedCounterSource, NANOUNITS>(value);
 }
 
-Tickspan::Tickspan(const Ticks& end, const Ticks& start) :
-  _elapsed_interval(end.value() - start.value())
-#ifdef X86
-  , _ft_elapsed_interval(end.ft_value() - start.ft_value())
+uint64_t CompositeElapsedCounterSource::frequency() {
+  return ElapsedCounterSource::frequency();
+}
+
+CompositeElapsedCounterSource::Type CompositeElapsedCounterSource::now() {
+  CompositeTime ct;
+  ct.val1 = ElapsedCounterSource::now();
+#if defined(X86) && !defined(ZERO)
+  static bool initialized = false;
+  static bool valid_rdtsc = false;
+  if (!initialized) {
+    valid_rdtsc = Rdtsc::initialize();
+    initialized = true;
+  }
+  if (valid_rdtsc) {
+    ct.val2 = Rdtsc::elapsed_counter();
+  }
 #endif
-  {}
-
-Tickspan::Tickspan(jlong interval) :
-  _elapsed_interval(interval)
-#ifdef X86
-  , _ft_elapsed_interval(interval)
-#endif
-  {}
-
-Tickspan& Tickspan::operator+=(const Tickspan& rhs) {
-  _elapsed_interval += rhs._elapsed_interval;
-  X86_ONLY(_ft_elapsed_interval += rhs._ft_elapsed_interval;)
-  return *this;
+  return ct;
 }
 
-Tickspan& Tickspan::operator-=(const Tickspan& rhs) {
-  _elapsed_interval -= rhs._elapsed_interval;
-  X86_ONLY(_ft_elapsed_interval -= rhs._ft_elapsed_interval;)
-  return *this;
+double CompositeElapsedCounterSource::seconds(Type value) {
+  return conversion<ElapsedCounterSource, 1>(value.val1);
 }
 
-jlong Tickspan::ft_value() const {
-#ifdef X86
-  return _ft_elapsed_interval.value();
-#else
-  return _elapsed_interval.value();
-#endif
+uint64_t CompositeElapsedCounterSource::milliseconds(Type value) {
+  return (uint64_t)conversion<ElapsedCounterSource, MILLIUNITS>(value.val1);
 }
 
-Ticks::Ticks(jlong stamp) :
-  _elapsed(stamp)
-#ifdef X86
-  , _ft_elapsed(stamp)
-#endif
-  {}
-
-Ticks Ticks::now() {
-  TicksStamped dec;
-  return dec;
+uint64_t CompositeElapsedCounterSource::microseconds(Type value) {
+  return (uint64_t)conversion<ElapsedCounterSource, MICROUNITS>(value.val1);
 }
 
-Ticks& Ticks::operator+=(const Tickspan& rhs) {
-  _elapsed += rhs.value();
-  X86_ONLY(_ft_elapsed += rhs.ft_value();)
-  return *this;
-}
-
-Ticks& Ticks::operator-=(const Tickspan& rhs) {
-  _elapsed -= rhs.value();
-  X86_ONLY(_ft_elapsed -= rhs.ft_value();)
-  return *this;
-}
-
-void Ticks::stamp() {
-  _elapsed.stamp();
-  X86_ONLY(_ft_elapsed.stamp();)
-}
-
-jlong Ticks::ft_value() const {
-#ifdef X86
-  return _ft_elapsed.value();
-#else
-  return _elapsed.value();
-#endif
-}
-
-TicksStamped::TicksStamped() : Ticks() {
-  _elapsed.stamp();
-  X86_ONLY(_ft_elapsed.stamp());
+uint64_t CompositeElapsedCounterSource::nanoseconds(Type value) {
+  return (uint64_t)conversion<ElapsedCounterSource, NANOUNITS>(value.val1);
 }

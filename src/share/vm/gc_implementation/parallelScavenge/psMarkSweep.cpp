@@ -41,6 +41,9 @@
 #include "gc_implementation/shared/markSweep.hpp"
 #include "gc_implementation/shared/spaceDecorator.hpp"
 #include "gc_interface/gcCause.hpp"
+#if INCLUDE_JFR
+#include "jfr/jfr.hpp"
+#endif
 #include "memory/gcLocker.inline.hpp"
 #include "memory/referencePolicy.hpp"
 #include "memory/referenceProcessor.hpp"
@@ -553,7 +556,7 @@ void PSMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
 
   // This is the point where the entire marking should have completed.
   assert(_marking_stack.is_empty(), "Marking should have completed");
-
+    
   // Unload classes and purge the SystemDictionary.
   bool purged_class = SystemDictionary::do_unloading(is_alive_closure());
 
@@ -624,6 +627,7 @@ void PSMarkSweep::mark_sweep_phase3() {
   // have been cleared if they pointed to non-surviving objects.)
   // Global (weak) JNI handles
   JNIHandles::weak_oops_do(adjust_pointer_closure());
+  JFR_ONLY(Jfr::weak_oops_do(adjust_pointer_closure()));
 
   CodeBlobToOopClosure adjust_from_blobs(adjust_pointer_closure(), CodeBlobToOopClosure::FixRelocations);
   CodeCache::blobs_do(&adjust_from_blobs);

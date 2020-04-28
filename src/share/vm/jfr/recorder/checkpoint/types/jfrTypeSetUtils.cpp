@@ -61,7 +61,7 @@ JfrSymbolId::~JfrSymbolId() {
 
 traceid JfrSymbolId::mark_anonymous_klass_name(const Klass* k) {
   assert(k != NULL, "invariant");
-  assert(k->is_instance_klass(), "invariant");
+  assert(k->oop_is_instance(), "invariant");
   assert(is_anonymous_klass(k), "invariant");
 
   uintptr_t anonymous_symbol_hash_code = 0;

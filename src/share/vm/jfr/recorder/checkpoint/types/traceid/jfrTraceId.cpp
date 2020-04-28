@@ -32,8 +32,8 @@
 #include "oops/instanceKlass.hpp"
 #include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
-#include "runtime/atomic.hpp"
-#include "runtime/orderAccess.hpp"
+#include "runtime/atomic.inline.hpp"
+#include "runtime/orderAccess.inline.hpp"
 #include "runtime/vm_version.hpp"
 #include "runtime/jniHandles.hpp"
 #include "runtime/thread.inline.hpp"
@@ -66,20 +66,13 @@ static traceid next_class_loader_data_id() {
   return atomic_inc(&cld_id_counter) << TRACE_ID_SHIFT;
 }
 
-static bool found_jdk_internal_event_klass = false;
 static bool found_jdk_jfr_event_klass = false;
 
 static void check_klass(const Klass* klass) {
   assert(klass != NULL, "invariant");
-  if (found_jdk_internal_event_klass && found_jdk_jfr_event_klass) {
+  if (found_jdk_jfr_event_klass) {
     return;
   }
-  static const Symbol* jdk_internal_event_sym = NULL;
-  if (jdk_internal_event_sym == NULL) {
-    // setup when loading the first TypeArrayKlass (Universe::genesis) hence single threaded invariant
-    jdk_internal_event_sym = SymbolTable::new_permanent_symbol("jdk/internal/event/Event", Thread::current());
-  }
-  assert(jdk_internal_event_sym != NULL, "invariant");
 
   static const Symbol* jdk_jfr_event_sym = NULL;
   if (jdk_jfr_event_sym == NULL) {
@@ -89,16 +82,8 @@ static void check_klass(const Klass* klass) {
   assert(jdk_jfr_event_sym != NULL, "invariant");
   const Symbol* const klass_name = klass->name();
 
-  if (!found_jdk_internal_event_klass) {
-    if (jdk_internal_event_sym == klass_name && klass->class_loader() == NULL) {
-      found_jdk_internal_event_klass = true;
-      JfrTraceId::tag_as_jdk_jfr_event(klass);
-      return;
-    }
-  }
-
   if (!found_jdk_jfr_event_klass) {
-    if (jdk_jfr_event_sym == klass_name && klass->class_loader() == NULL) {
+    if (jdk_jfr_event_sym == klass_name) {
       found_jdk_jfr_event_klass = true;
       JfrTraceId::tag_as_jdk_jfr_event(klass);
       return;

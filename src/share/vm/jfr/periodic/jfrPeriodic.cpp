@@ -28,6 +28,7 @@
 #include "classfile/javaClasses.hpp"
 #include "code/codeCache.hpp"
 #include "compiler/compileBroker.hpp"
+#include "gc_implementation/g1/g1HeapRegionEventSender.hpp"
 #include "gc_implementation/shared/gcConfiguration.hpp"
 #include "gc_implementation/shared/gcTrace.hpp"
 #include "gc_implementation/shared/objectCountEventSender.hpp"
@@ -299,6 +300,20 @@ TRACE_REQUEST_FUNC(ObjectCount) {
   VMThread::execute(&op);
 }
 
+class VM_G1SendHeapRegionInfoEvents : public VM_Operation {
+  virtual void doit() {
+    G1HeapRegionEventSender::send_events();
+  }
+  virtual VMOp_Type type() const { return VMOp_HeapIterateOperation; }
+};
+
+TRACE_REQUEST_FUNC(G1HeapRegionInformation) {                                                                                          
+  if (UseG1GC) {
+    VM_G1SendHeapRegionInfoEvents op;
+    VMThread::execute(&op);
+  }
+}
+
 // Java Mission Control (JMC) uses (Java) Long.MIN_VALUE to describe that a
 // long value is undefined.
 static jlong jmc_undefined_long = min_jlong;
@@ -363,7 +378,7 @@ TRACE_REQUEST_FUNC(InitialSystemProperty) {
   SystemProperty* p = Arguments::system_properties();
   JfrTicks time_stamp = JfrTicks::now();
   while (p !=  NULL) {
-    if (!p->internal()) {
+    if (true /*!p->internal()*/) {
       EventInitialSystemProperty event(UNTIMED);
       event.set_key(p->key());
       event.set_value(p->value());
@@ -523,9 +538,9 @@ TRACE_REQUEST_FUNC(CodeCacheConfiguration) {
   EventCodeCacheConfiguration event;
   event.set_initialSize(InitialCodeCacheSize);
   event.set_reservedSize(ReservedCodeCacheSize);
-//  event.set_nonNMethodSize(NonNMethodCodeHeapSize);
-//  event.set_profiledSize(ProfiledCodeHeapSize);
-//  event.set_nonProfiledSize(NonProfiledCodeHeapSize);
+  event.set_nonNMethodSize(0 /*NonNMethodCodeHeapSize*/);
+  event.set_profiledSize(0 /*ProfiledCodeHeapSize*/);
+  event.set_nonProfiledSize(0 /*NonProfiledCodeHeapSize*/);
   event.set_expansionSize(CodeCacheExpansionSize);
   event.set_minBlockLength(CodeCacheMinBlockLength);
   event.set_startAddress((u8)CodeCache::low_bound());

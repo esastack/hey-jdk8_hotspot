@@ -79,7 +79,7 @@ void ageTable::merge_par(ageTable* subTable) {
   }
 }
 
-uint ageTable::compute_tenuring_threshold(size_t survivor_capacity) {
+uint ageTable::compute_tenuring_threshold(size_t survivor_capacity, GCTracer &tracer) {
   size_t desired_survivor_size = (size_t)((((double) survivor_capacity)*TargetSurvivorRatio)/100);
   size_t total = 0;
   uint age = 1;
@@ -115,7 +115,7 @@ uint ageTable::compute_tenuring_threshold(size_t survivor_capacity) {
       }
 
       if (AgeTableTracer::is_tenuring_distribution_event_enabled()) {
-        AgeTableTracer::send_tenuring_distribution_event(age, sizes[age]*oopSize);
+        AgeTableTracer::send_tenuring_distribution_event(age, sizes[age]*oopSize, tracer);
       }
       
       if (UsePerfData) {

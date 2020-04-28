@@ -35,10 +35,6 @@
 #include "utilities/ticks.hpp"
 #include "jfr/support/jfrTraceIdExtension.hpp"
 
-// external name (synthetic) for the primordial "bootstrap" class loader instance
-#define BOOTSTRAP_LOADER_NAME "bootstrap"
-#define BOOTSTRAP_LOADER_NAME_LEN 9
-
 //
 // A class loader represents a linkset. Conceptually, a linkset identifies
 // the complete transitive closure of resolved links that a dynamic linker can

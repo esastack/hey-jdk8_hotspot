@@ -1670,11 +1670,7 @@ void JavaThread::run() {
     JvmtiExport::post_thread_start(this);
   }
 
-  EventThreadStart event;
-  if (event.should_commit()) {
-    event.set_thread(JFR_THREAD_ID(this));
-    event.commit();
-  }
+  JFR_ONLY(Jfr::on_thread_start(this);)
 
   // We call another function to do the rest so we are sure that the stack addresses used
   // from there will be lower than the stack base just computed
@@ -3317,6 +3313,13 @@ void Threads::threads_do(ThreadClosure* tc) {
   if (wt != NULL)
     tc->do_thread(wt);
 
+#if INCLUDE_JFR
+  Thread* sampler_thread = Jfr::sampler_thread();
+  if (sampler_thread != NULL) {
+    tc->do_thread(sampler_thread);
+  }
+
+#endif
   // If CompilerThreads ever become non-JavaThreads, add them here
 }
 

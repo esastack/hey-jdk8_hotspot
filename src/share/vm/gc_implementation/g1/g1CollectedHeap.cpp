@@ -58,6 +58,9 @@
 #include "gc_implementation/shared/gcTrace.hpp"
 #include "gc_implementation/shared/gcTraceTime.hpp"
 #include "gc_implementation/shared/isGCActiveMark.hpp"
+#if INCLUDE_JFR
+#include "jfr/jfr.hpp"
+#endif
 #include "memory/allocation.hpp"
 #include "memory/gcLocker.inline.hpp"
 #include "memory/generationSpec.hpp"
@@ -67,6 +70,7 @@
 #include "oops/oop.pcgc.inline.hpp"
 #include "runtime/orderAccess.inline.hpp"
 #include "runtime/vmThread.hpp"
+#include "utilities/ticks.hpp"
 
 size_t G1CollectedHeap::_humongous_object_threshold_in_words = 0;
 
@@ -2790,6 +2794,7 @@ HeapRegion* G1CollectedHeap::start_cset_region_for_worker(uint worker_i) {
       // Previous workers starting region is valid
       // so let's iterate from there
       start_ind = (cs_size * (worker_i - 1)) / active_workers;
+      OrderAccess::loadload();
       result = _worker_cset_start_region[worker_i - 1];
     }
 
@@ -4089,7 +4094,8 @@ G1CollectedHeap::do_collection_pause_at_safepoint(double target_pause_time_ms) {
         g1_policy()->print_collection_set(g1_policy()->inc_cset_head(), gclog_or_tty);
 #endif // YOUNG_LIST_VERBOSE
 
-        g1_policy()->record_collection_pause_start(sample_start_time_sec);
+        g1_policy()->record_collection_pause_start(sample_start_time_sec, 
+          *_gc_tracer_stw);
 
         double scan_wait_start = os::elapsedTime();
         // We have to wait until the CM threads finish scanning the
@@ -5833,11 +5839,14 @@ void G1CollectedHeap::evacuate_collection_set(EvacuationInfo& evacuation_info) {
   // not copied during the pause.
   process_discovered_references(n_workers);
 
-  if (G1StringDedup::is_enabled()) {
-    double fixup_start = os::elapsedTime();
+  double fixup_start = os::elapsedTime();
 
-    G1STWIsAliveClosure is_alive(this);
-    G1KeepAliveClosure keep_alive(this);
+  G1STWIsAliveClosure is_alive(this);
+  G1KeepAliveClosure keep_alive(this);
+
+//  JFR_ONLY(Jfr::weak_oops_do(&is_alive, &keep_alive);)
+    
+  if (G1StringDedup::is_enabled()) {
     G1StringDedup::unlink_or_oops_do(&is_alive, &keep_alive, true, phase_times);
 
     double fixup_time_ms = (os::elapsedTime() - fixup_start) * 1000.0;

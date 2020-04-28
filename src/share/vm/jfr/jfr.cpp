@@ -63,6 +63,10 @@ void Jfr::on_unloading_classes() {
   }
 }
 
+void Jfr::on_thread_start(JavaThread* t) {
+  JfrThreadLocal::on_start(t);
+}
+
 void Jfr::on_thread_exit(JavaThread* thread) {
   JfrThreadLocal::on_exit(thread);
 }
@@ -81,6 +85,11 @@ void Jfr::on_vm_shutdown(bool exception_handler) {
 
 void Jfr::weak_oops_do(BoolObjectClosure* is_alive, OopClosure* f) {
   LeakProfiler::oops_do(is_alive, f);
+}
+
+void Jfr::weak_oops_do(OopClosure* f) {
+  AlwaysTrueClosure always_true;
+  LeakProfiler::oops_do(&always_true, f);
 }
 
 bool Jfr::on_flight_recorder_option(const JavaVMOption** option, char* delimiter) {

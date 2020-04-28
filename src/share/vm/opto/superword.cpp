@@ -483,6 +483,9 @@ bool SuperWord::ref_is_alignable(SWPointer& p) {
     int init = init_nd->bottom_type()->is_int()->get_con();
     int init_offset = init * p.scale_in_bytes() + offset;
     assert(init_offset >= 0, "positive offset from object start");
+    if (init_offset < 0) { // negative offset from object start?
+      return false;        // may happen in dead loop
+    }
     if (vw % span == 0) {
       // If vm is a multiple of span, we use formula (1).
       if (span > 0) {
@@ -2050,7 +2053,7 @@ void SuperWord::align_initial_loop_index(MemNode* align_to_ref) {
   CountedLoopNode *main_head = lp()->as_CountedLoop();
   assert(main_head->is_main_loop(), "");
   CountedLoopEndNode* pre_end = get_pre_loop_end(main_head);
-  assert(pre_end != NULL, "");
+  assert(pre_end != NULL, "we must have a correct pre-loop");
   Node *pre_opaq1 = pre_end->limit();
   assert(pre_opaq1->Opcode() == Op_Opaque1, "");
   Opaque1Node *pre_opaq = (Opaque1Node*)pre_opaq1;
@@ -2214,7 +2217,8 @@ CountedLoopEndNode* SuperWord::get_pre_loop_end(CountedLoopNode *cl) {
   if (!p_f->is_IfFalse()) return NULL;
   if (!p_f->in(0)->is_CountedLoopEnd()) return NULL;
   CountedLoopEndNode *pre_end = p_f->in(0)->as_CountedLoopEnd();
-  if (!pre_end->loopnode()->is_pre_loop()) return NULL;
+  CountedLoopNode* loop_node = pre_end->loopnode();
+  if (loop_node == NULL || !loop_node->is_pre_loop()) return NULL;
   return pre_end;
 }
 
