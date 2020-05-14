@@ -28,7 +28,9 @@
  * @library /testlibrary
  * @run main TestEnableTracing
  */
-
+/* The Trace function has been replaced by Jfr and enabled default. 
+ * Ignore these testcase.
+*/
 import com.oracle.java.testlibrary.ProcessTools;
 import com.oracle.java.testlibrary.OutputAnalyzer;
 
@@ -39,17 +41,17 @@ public class TestEnableTracing {
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("-XX:+EnableTracing", "-version");
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
         if (output.getStderr().contains(OPENJDK_MARK)) {
-            output.shouldMatch("^Class Load");
-            output.shouldContain("Loaded Class ="); // verify TraceStream print_val Klass*
+//            output.shouldMatch("^Class Load");
+//            output.shouldContain("Loaded Class ="); // verify TraceStream print_val Klass*
         }
         output.shouldHaveExitValue(0);
 
         pb = ProcessTools.createJavaProcessBuilder("-XX:+EnableTracing", "-XX:+UseLockedTracing", "-Xcomp ", "-version");
         output = new OutputAnalyzer(pb.start());
         if (output.getStderr().contains(OPENJDK_MARK)) {
-            output.shouldMatch("^Class Load");
-            output.shouldMatch("^Compilation");
-            output.shouldContain("Java Method ="); // verify TraceStream print_val Method*
+//            output.shouldMatch("^Class Load");
+//            output.shouldMatch("^Compilation");
+//            output.shouldContain("Java Method ="); // verify TraceStream print_val Method*
         }
         output.shouldHaveExitValue(0);
     }

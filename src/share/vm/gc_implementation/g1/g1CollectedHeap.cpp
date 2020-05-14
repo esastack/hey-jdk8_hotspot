@@ -5838,15 +5838,12 @@ void G1CollectedHeap::evacuate_collection_set(EvacuationInfo& evacuation_info) {
   // objects (and their reachable sub-graphs) that were
   // not copied during the pause.
   process_discovered_references(n_workers);
-
-  double fixup_start = os::elapsedTime();
-
-  G1STWIsAliveClosure is_alive(this);
-  G1KeepAliveClosure keep_alive(this);
-
-//  JFR_ONLY(Jfr::weak_oops_do(&is_alive, &keep_alive);)
     
   if (G1StringDedup::is_enabled()) {
+    double fixup_start = os::elapsedTime();
+
+    G1STWIsAliveClosure is_alive(this);
+    G1KeepAliveClosure keep_alive(this);
     G1StringDedup::unlink_or_oops_do(&is_alive, &keep_alive, true, phase_times);
 
     double fixup_time_ms = (os::elapsedTime() - fixup_start) * 1000.0;
