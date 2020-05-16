@@ -198,6 +198,20 @@ InCSetState G1ParScanThreadState::next_state(InCSetState const state, markOop co
   return dest(state);
 }
 
+void G1ParScanThreadState::report_promotion_event(InCSetState const dest_state,
+                                                  oop const old, size_t word_sz, uint age,
+                                                  HeapWord * const obj_ptr, AllocationContext_t context) const {
+  G1ParGCAllocBuffer* alloc_buf = _g1_par_allocator->alloc_buffer(dest_state, context);
+  if (alloc_buf->contains(obj_ptr)) {
+    _g1h->_gc_tracer_stw->report_promotion_in_new_plab_event(old->klass(), word_sz, age,
+                                                             dest_state.value() == InCSetState::Old,
+                                                             alloc_buf->word_sz());
+  } else {
+    _g1h->_gc_tracer_stw->report_promotion_outside_plab_event(old->klass(), word_sz, age,
+                                                              dest_state.value() == InCSetState::Old);
+  }
+}
+
 oop G1ParScanThreadState::copy_to_survivor_space(InCSetState const state,
                                                  oop const old,
                                                  markOop const old_mark) {
@@ -224,6 +238,11 @@ oop G1ParScanThreadState::copy_to_survivor_space(InCSetState const state,
         // installed a forwarding pointer.
         return _g1h->handle_evacuation_failure_par(this, old);
       }
+    }
+
+    if (_g1h->_gc_tracer_stw->should_report_promotion_events()) {
+      // The events are checked individually as part of the actual commit
+      report_promotion_event(dest_state, old, word_sz, age, obj_ptr, context);
     }
   }
 

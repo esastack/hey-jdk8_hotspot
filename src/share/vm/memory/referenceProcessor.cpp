@@ -28,6 +28,7 @@
 #include "gc_implementation/shared/gcTimer.hpp"
 #include "gc_implementation/shared/gcTraceTime.hpp"
 #include "gc_interface/collectedHeap.hpp"
+#include "jfr/jfr.hpp"
 #include "gc_interface/collectedHeap.inline.hpp"
 #include "memory/referencePolicy.hpp"
 #include "memory/referenceProcessor.hpp"
@@ -300,6 +301,7 @@ void ReferenceProcessor::process_phaseJNI(BoolObjectClosure* is_alive,
   }
 #endif
   JNIHandles::weak_oops_do(is_alive, keep_alive);
+  JFR_ONLY(Jfr::weak_oops_do(is_alive, keep_alive));
   complete_gc->do_void();
 }
 

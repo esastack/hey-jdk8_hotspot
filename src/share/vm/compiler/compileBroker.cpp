@@ -43,7 +43,7 @@
 #include "runtime/os.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/sweeper.hpp"
-#include "trace/tracing.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "utilities/dtrace.hpp"
 #include "utilities/events.hpp"
 #ifdef COMPILER1
@@ -1913,6 +1913,19 @@ static void codecache_print(bool detailed)
   tty->print("%s", s.as_string());
 }
 
+static void post_compilation_event(EventCompilation* event, CompileTask* task) {
+  assert(event != NULL, "invariant");
+  assert(event->should_commit(), "invariant");
+  event->set_method(task->method());
+  event->set_compileId(task->compile_id());
+  event->set_compileLevel(task->comp_level());
+  event->set_succeded(task->is_success());
+  event->set_isOsr(task->osr_bci() != CompileBroker::standard_entry_bci);
+  event->set_codeSize((task->code() == NULL) ? 0 : task->code()->total_size());
+  event->set_inlinedBytes(task->num_inlined_bytecodes());
+  event->commit();
+}
+
 // ------------------------------------------------------------------
 // CompileBroker::invoke_compiler_on_method
 //
@@ -2033,15 +2046,9 @@ void CompileBroker::invoke_compiler_on_method(CompileTask* task) {
     }
     // simulate crash during compilation
     assert(task->compile_id() != CICrashAt, "just as planned");
+    
     if (event.should_commit()) {
-      event.set_method(target->get_Method());
-      event.set_compileID(compile_id);
-      event.set_compileLevel(task->comp_level());
-      event.set_succeded(task->is_success());
-      event.set_isOsr(is_osr);
-      event.set_codeSize((task->code() == NULL) ? 0 : task->code()->total_size());
-      event.set_inlinedBytes(task->num_inlined_bytecodes());
-      event.commit();
+      post_compilation_event(&event, task);
     }
   }
   pop_jni_handle_block();

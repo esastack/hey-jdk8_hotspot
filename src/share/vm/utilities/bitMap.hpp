@@ -278,6 +278,15 @@ class BitMap VALUE_OBJ_CLASS_SPEC {
 #endif
 };
 
+// A concrete implementation of the the "abstract" BitMap class.
+//
+// The BitMapView is used when the backing storage is managed externally.
+class BitMapView : public BitMap {
+ public:
+  BitMapView() : BitMap((bm_word_t*)NULL, 0) {}
+  BitMapView(bm_word_t* map, idx_t size_in_bits) : BitMap(map, size_in_bits) {}
+};
+
 // Convenience class wrapping BitMap which provides multiple bits per slot.
 class BitMap2D VALUE_OBJ_CLASS_SPEC {
  public:

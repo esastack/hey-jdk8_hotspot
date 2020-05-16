@@ -31,6 +31,7 @@
 #include "gc_implementation/g1/heapRegionBounds.inline.hpp"
 #include "gc_implementation/g1/heapRegionRemSet.hpp"
 #include "gc_implementation/g1/heapRegionManager.inline.hpp"
+#include "gc_implementation/g1/heapRegionTracer.hpp"
 #include "gc_implementation/shared/liveRange.hpp"
 #include "memory/genOopClosures.inline.hpp"
 #include "memory/iterator.hpp"
@@ -218,6 +219,7 @@ void HeapRegion::set_startsHumongous(HeapWord* new_top, HeapWord* new_end) {
   assert(top() == bottom(), "should be empty");
   assert(bottom() <= new_top && new_top <= new_end, "pre-condition");
 
+  report_region_type_change(G1HeapRegionTraceType::StartsHumongous);
   _type.set_starts_humongous();
   _humongous_start_region = this;
 
@@ -232,6 +234,7 @@ void HeapRegion::set_continuesHumongous(HeapRegion* first_hr) {
   assert(top() == bottom(), "should be empty");
   assert(first_hr->startsHumongous(), "pre-condition");
 
+  report_region_type_change(G1HeapRegionTraceType::ContinuesHumongous);
   _type.set_continues_humongous();
   _humongous_start_region = first_hr;
 }
@@ -301,6 +304,14 @@ void HeapRegion::initialize(MemRegion mr, bool clear_space, bool mangle_space) {
   hr_clear(false /*par*/, false /*clear_space*/);
   set_top(bottom());
   record_timestamp();
+}
+
+void HeapRegion::report_region_type_change(G1HeapRegionTraceType::Type to) {
+  HeapRegionTracer::send_region_type_change(_hrm_index,
+                                            get_trace_type(),
+                                            to,
+                                            (uintptr_t)bottom(),
+                                            used());
 }
 
 CompactibleSpace* HeapRegion::next_compaction_space() const {

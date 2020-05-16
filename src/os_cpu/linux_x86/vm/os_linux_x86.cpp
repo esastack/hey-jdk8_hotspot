@@ -536,7 +536,7 @@ JVM_handle_linux_signal(int sig,
   sigemptyset(&newset);
   sigaddset(&newset, sig);
   sigprocmask(SIG_UNBLOCK, &newset, NULL);
-
+  
   VMError err(t, sig, pc, info, ucVoid);
   err.report_and_die();
 

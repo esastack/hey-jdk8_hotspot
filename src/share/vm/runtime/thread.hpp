@@ -42,8 +42,6 @@
 #include "runtime/threadLocalStorage.hpp"
 #include "runtime/thread_ext.hpp"
 #include "runtime/unhandledOops.hpp"
-#include "trace/traceBackend.hpp"
-#include "trace/traceMacros.hpp"
 #include "utilities/exceptions.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/top.hpp"
@@ -54,6 +52,7 @@
 #ifdef TARGET_ARCH_zero
 # include "stack_zero.hpp"
 #endif
+#include "jfr/support/jfrThreadExtension.hpp"
 
 class ThreadSafepointState;
 class ThreadProfiler;
@@ -195,7 +194,9 @@ class Thread: public ThreadShadow {
     _deopt_suspend          = 0x10000000U, // thread needs to self suspend for deopt
 
     _has_async_exception    = 0x00000001U, // there is a pending async exception
-    _critical_native_unlock = 0x00000002U  // Must call back to unlock JNI critical lock
+    _critical_native_unlock = 0x00000002U, // Must call back to unlock JNI critical lock
+      
+    _trace_flag             = 0x00000004U  // call jfr backend
   };
 
   // various suspension related flags - atomically updated
@@ -260,8 +261,8 @@ class Thread: public ThreadShadow {
   // Thread-local buffer used by MetadataOnStackMark.
   MetadataOnStackBuffer* _metadata_on_stack_buffer;
 
-  TRACE_DATA _trace_data;                       // Thread-local data for tracing
-
+  JFR_ONLY(DEFINE_THREAD_LOCAL_FIELD_JFR;)      // Thread-local data for jfr
+  
   ThreadExt _ext;
 
   int   _vm_operation_started_count;            // VM_Operation support
@@ -383,6 +384,13 @@ class Thread: public ThreadShadow {
     clear_suspend_flag(_critical_native_unlock);
   }
 
+  void set_trace_flag() {
+    set_suspend_flag(_trace_flag);
+  }
+  void clear_trace_flag() {
+    clear_suspend_flag(_trace_flag);
+  }
+  
   // Support for Unhandled Oop detection
 #ifdef CHECK_UNHANDLED_OOPS
  private:
@@ -441,11 +449,13 @@ class Thread: public ThreadShadow {
   void incr_allocated_bytes(jlong size) { _allocated_bytes += size; }
   inline jlong cooked_allocated_bytes();
 
-  TRACE_DATA* trace_data()              { return &_trace_data; }
-
   const ThreadExt& ext() const          { return _ext; }
   ThreadExt& ext()                      { return _ext; }
 
+  JFR_ONLY(DEFINE_THREAD_LOCAL_ACCESSOR_JFR;)
+  
+  bool is_trace_suspend()               { return (_suspend_flags & _trace_flag) != 0; }
+ 
   // VM operation support
   int vm_operation_ticket()                      { return ++_vm_operation_started_count; }
   int vm_operation_completed_count()             { return _vm_operation_completed_count; }
@@ -625,6 +635,8 @@ protected:
 #undef TLAB_FIELD_OFFSET
 
   static ByteSize allocated_bytes_offset()       { return byte_offset_of(Thread, _allocated_bytes ); }
+
+  JFR_ONLY(DEFINE_THREAD_LOCAL_OFFSET_JFR;)
 
  public:
   volatile intptr_t _Stalled ;

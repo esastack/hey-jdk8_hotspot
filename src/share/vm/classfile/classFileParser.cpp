@@ -3885,6 +3885,7 @@ instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
 
   // This class and superclass
   u2 this_class_index = cfs->get_u2_fast();
+  _this_class_index = this_class_index; // Save class index.
   check_property(
     valid_cp_range(this_class_index, cp_size) &&
       cp->tag_at(this_class_index).is_unresolved_klass(),
@@ -4261,6 +4262,8 @@ instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
     // preserve result across HandleMark
     preserve_this_klass = this_klass();
   }
+
+  JFR_ONLY(INIT_ID(preserve_this_klass);)
 
   // Create new handle outside HandleMark (might be needed for
   // Extended Class Redefinition)
@@ -5272,4 +5275,23 @@ char* ClassFileParser::skip_over_field_signature(char* signature,
     }
   }
   return NULL;
+}
+
+// Caller responsible for ResourceMark
+// clone stream with rewound position
+const ClassFileStream* ClassFileParser::clone_stream() const {
+  assert(_stream != NULL, "invariant");
+
+  return _stream->clone();
+}
+
+void ClassFileParser::set_klass_to_deallocate(InstanceKlass* klass) {
+
+#ifdef ASSERT
+  if (klass != NULL) {
+    assert(NULL == _klass, "leaking?");
+  }
+#endif
+  // Not _klass_to_deallocate
+  _klass = klass;
 }

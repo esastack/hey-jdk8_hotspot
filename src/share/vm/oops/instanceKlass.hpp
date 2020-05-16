@@ -38,7 +38,7 @@
 #include "utilities/accessFlags.hpp"
 #include "utilities/bitMap.inline.hpp"
 #include "utilities/macros.hpp"
-#include "trace/traceMacros.hpp"
+#include "jfr/support/jfrKlassExtension.hpp"
 
 // An InstanceKlass is the VM level representation of a Java class.
 // It contains all information needed for at class at execution runtime.
@@ -226,7 +226,8 @@ class InstanceKlass: public Klass {
   // _misc_flags.
   bool            _is_marked_dependent;  // used for marking during flushing and deoptimization
   bool            _has_unloaded_dependent;
-
+  bool            _is_being_redefined;   // used for locking redefinition
+  
   enum {
     _misc_rewritten                = 1 << 0, // methods rewritten.
     _misc_has_nonstatic_fields     = 1 << 1, // for sizing with UseCompressedOops
@@ -667,6 +668,10 @@ class InstanceKlass: public Klass {
     _nonstatic_oop_map_size = words;
   }
 
+  // Redefinition locking.  Class can only be redefined by one thread at a time.
+  bool is_being_redefined() const          { return _is_being_redefined; }
+  void set_is_being_redefined(bool value)  { _is_being_redefined = value; }
+
   // RedefineClasses() support for previous versions:
   void add_previous_version(instanceKlassHandle ikh, int emcp_method_count);
 
@@ -833,7 +838,7 @@ class InstanceKlass: public Klass {
 
   // support for stub routines
   static ByteSize init_state_offset()  { return in_ByteSize(offset_of(InstanceKlass, _init_state)); }
-  TRACE_DEFINE_OFFSET;
+  JFR_ONLY(DEFINE_KLASS_TRACE_ID_OFFSET;)
   static ByteSize init_thread_offset() { return in_ByteSize(offset_of(InstanceKlass, _init_thread)); }
 
   // subclass/subinterface checks
@@ -907,6 +912,12 @@ class InstanceKlass: public Klass {
     return (InstanceKlass*) k;
   }
 
+  static const InstanceKlass* cast(const Klass* k) {
+    assert(k == NULL || k->is_klass(), "must be");
+    assert(k == NULL || k->oop_is_instance(), "cast to InstanceKlass");
+    return (InstanceKlass*) k;
+  }
+  
   InstanceKlass* java_super() const {
     return (super() == NULL) ? NULL : cast(super());
   }

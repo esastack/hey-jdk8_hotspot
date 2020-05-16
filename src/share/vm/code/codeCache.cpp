@@ -46,8 +46,8 @@
 #include "runtime/java.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "services/memoryService.hpp"
-#include "trace/tracing.hpp"
 #include "utilities/xmlstream.hpp"
+#include "jfr/jfrEvents.hpp"
 
 // Helper class for printing in CodeCache
 
@@ -187,6 +187,12 @@ CodeBlob* CodeCache::allocate(int size, bool is_critical) {
     cb = (CodeBlob*)_heap->allocate(size, is_critical);
     if (cb != NULL) break;
     if (!_heap->expand_by(CodeCacheExpansionSize)) {
+        if (CodeCache_lock->owned_by_self()) {
+          MutexUnlockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
+          report_codemem_full();
+        } else {
+          report_codemem_full();
+        }
       // Expansion failed
       return NULL;
     }
@@ -779,6 +785,7 @@ void CodeCache::report_codemem_full() {
   _codemem_full_count++;
   EventCodeCacheFull event;
   if (event.should_commit()) {
+    event.set_codeBlobType((u1)CodeBlobType::All);
     event.set_startAddress((u8)low_bound());
     event.set_commitedTopAddress((u8)high());
     event.set_reservedTopAddress((u8)high_bound());

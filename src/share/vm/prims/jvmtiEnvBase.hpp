@@ -251,6 +251,13 @@ class JvmtiEnvBase : public CHeapObj<mtInternal> {
     return _tag_map;
   }
 
+  JvmtiTagMap* tag_map_acquire() {
+    return (JvmtiTagMap*)OrderAccess::load_ptr_acquire(&_tag_map);
+  }
+
+  void release_set_tag_map(JvmtiTagMap* tag_map) {
+    OrderAccess::release_store_ptr(&_tag_map, tag_map);
+  }
 
   // return true if event is enabled globally or for any thread
   // True only if there is a callback for it.

@@ -26,8 +26,8 @@
 #include "classfile/classLoaderData.hpp"
 #include "memory/metaspaceTracer.hpp"
 #include "oops/oop.inline.hpp"
-#include "trace/tracing.hpp"
-#include "trace/traceBackend.hpp"
+#include "jfr/jfrEvents.hpp"
+
 
 void MetaspaceTracer::report_gc_threshold(size_t old_val,
                                           size_t new_val,
@@ -67,13 +67,12 @@ void MetaspaceTracer::send_allocation_failure_event(ClassLoaderData *cld,
       event.set_anonymousClassLoader(true);
     } else {
       if (cld->is_the_null_class_loader_data()) {
-        event.set_classLoader((Klass*) NULL);
+        event.set_classLoader(NULL);
       } else {
-        event.set_classLoader(cld->class_loader()->klass());
+        event.set_classLoader(cld);
       }
       event.set_anonymousClassLoader(false);
     }
-
     event.set_size(word_size * BytesPerWord);
     event.set_metadataType((u1) mdtype);
     event.set_metaspaceObjectType((u1) objtype);

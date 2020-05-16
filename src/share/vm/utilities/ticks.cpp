@@ -26,43 +26,145 @@
 #include "runtime/os.hpp"
 #include "utilities/ticks.inline.hpp"
 
-#ifdef ASSERT
- const jlong Ticks::invalid_time_stamp = -2; // 0xFFFF FFFF`FFFF FFFE
+#ifdef X86
+#include "rdtsc_x86.hpp"
 #endif
 
-void Ticks::stamp() {
-  _stamp_ticks = os::elapsed_counter();
+#ifdef TARGET_OS_ARCH_linux_x86
+# include "os_linux_x86.hpp"
+#endif
+#ifdef TARGET_OS_ARCH_linux_sparc
+# include "os_linux_sparc.hpp"
+#endif
+#ifdef TARGET_OS_ARCH_linux_zero
+# include "os_linux_zero.hpp"
+#endif
+#ifdef TARGET_OS_ARCH_solaris_x86
+# include "os_solaris_x86.hpp"
+#endif
+#ifdef TARGET_OS_ARCH_solaris_sparc
+# include "os_solaris_sparc.hpp"
+#endif
+#ifdef TARGET_OS_ARCH_windows_x86
+# include "os_windows_x86.hpp"
+#endif
+#ifdef TARGET_OS_ARCH_linux_arm
+# include "os_linux_arm.hpp"
+#endif
+#ifdef TARGET_OS_ARCH_linux_ppc
+# include "os_linux_ppc.hpp"
+#endif
+#ifdef TARGET_OS_ARCH_aix_ppc
+# include "os_aix_ppc.hpp"
+#endif
+#ifdef TARGET_OS_ARCH_bsd_x86
+# include "os_bsd_x86.hpp"
+#endif
+#ifdef TARGET_OS_ARCH_bsd_zero
+# include "os_bsd_zero.hpp"
+#endif
+
+template <typename TimeSource, const int unit>
+inline double conversion(typename TimeSource::Type& value) {
+  return (double)value * ((double)unit / (double)TimeSource::frequency());
 }
 
-const Ticks Ticks::now() {
-  Ticks t;
-  t.stamp();
-  return t;
+uint64_t ElapsedCounterSource::frequency() {
+  static const uint64_t freq = (uint64_t)os::elapsed_frequency();
+  return freq;
 }
 
-Tickspan::Tickspan(const Ticks& end, const Ticks& start) {
-  assert(end.value() != Ticks::invalid_time_stamp, "end is unstamped!");
-  assert(start.value() != Ticks::invalid_time_stamp, "start is unstamped!");
-
-  assert(end >= start, "negative time!");
-
-  _span_ticks = end.value() - start.value();
+ElapsedCounterSource::Type ElapsedCounterSource::now() {
+  return os::elapsed_counter();
 }
 
-template <typename ReturnType>
-static ReturnType time_conversion(const Tickspan& span, TicksToTimeHelper::Unit unit) {
-  assert(TicksToTimeHelper::SECONDS == unit ||
-         TicksToTimeHelper::MILLISECONDS == unit, "invalid unit!");
-
-  ReturnType frequency_per_unit = (ReturnType)os::elapsed_frequency() / (ReturnType)unit;
-
-  return (ReturnType) ((ReturnType)span.value() / frequency_per_unit);
+double ElapsedCounterSource::seconds(Type value) {
+  return conversion<ElapsedCounterSource, 1>(value);
 }
 
-double TicksToTimeHelper::seconds(const Tickspan& span) {
-  return time_conversion<double>(span, SECONDS);
+uint64_t ElapsedCounterSource::milliseconds(Type value) {
+  return (uint64_t)conversion<ElapsedCounterSource, MILLIUNITS>(value);
 }
 
-jlong TicksToTimeHelper::milliseconds(const Tickspan& span) {
-  return time_conversion<jlong>(span, MILLISECONDS);
+uint64_t ElapsedCounterSource::microseconds(Type value) {
+  return (uint64_t)conversion<ElapsedCounterSource, MICROUNITS>(value);
+}
+
+uint64_t ElapsedCounterSource::nanoseconds(Type value) {
+  return (uint64_t)conversion<ElapsedCounterSource, NANOUNITS>(value);
+}
+
+uint64_t FastUnorderedElapsedCounterSource::frequency() {
+#if defined(X86) && !defined(ZERO)
+  static bool valid_rdtsc = Rdtsc::initialize();
+  if (valid_rdtsc) {
+    static const uint64_t freq = (uint64_t)Rdtsc::frequency();
+    return freq;
+  }
+#endif
+  static const uint64_t freq = (uint64_t)os::elapsed_frequency();
+  return freq;
+}
+
+FastUnorderedElapsedCounterSource::Type FastUnorderedElapsedCounterSource::now() {
+#if defined(X86) && !defined(ZERO)
+  static bool valid_rdtsc = Rdtsc::initialize();
+  if (valid_rdtsc) {
+    return Rdtsc::elapsed_counter();
+  }
+#endif
+  return os::elapsed_counter();
+}
+
+double FastUnorderedElapsedCounterSource::seconds(Type value) {
+  return conversion<FastUnorderedElapsedCounterSource, 1>(value);
+}
+
+uint64_t FastUnorderedElapsedCounterSource::milliseconds(Type value) {
+  return (uint64_t)conversion<FastUnorderedElapsedCounterSource, MILLIUNITS>(value);
+}
+
+uint64_t FastUnorderedElapsedCounterSource::microseconds(Type value) {
+  return (uint64_t)conversion<FastUnorderedElapsedCounterSource, MICROUNITS>(value);
+}
+
+uint64_t FastUnorderedElapsedCounterSource::nanoseconds(Type value) {
+  return (uint64_t)conversion<FastUnorderedElapsedCounterSource, NANOUNITS>(value);
+}
+
+uint64_t CompositeElapsedCounterSource::frequency() {
+  return ElapsedCounterSource::frequency();
+}
+
+CompositeElapsedCounterSource::Type CompositeElapsedCounterSource::now() {
+  CompositeTime ct;
+  ct.val1 = ElapsedCounterSource::now();
+#if defined(X86) && !defined(ZERO)
+  static bool initialized = false;
+  static bool valid_rdtsc = false;
+  if (!initialized) {
+    valid_rdtsc = Rdtsc::initialize();
+    initialized = true;
+  }
+  if (valid_rdtsc) {
+    ct.val2 = Rdtsc::elapsed_counter();
+  }
+#endif
+  return ct;
+}
+
+double CompositeElapsedCounterSource::seconds(Type value) {
+  return conversion<ElapsedCounterSource, 1>(value.val1);
+}
+
+uint64_t CompositeElapsedCounterSource::milliseconds(Type value) {
+  return (uint64_t)conversion<ElapsedCounterSource, MILLIUNITS>(value.val1);
+}
+
+uint64_t CompositeElapsedCounterSource::microseconds(Type value) {
+  return (uint64_t)conversion<ElapsedCounterSource, MICROUNITS>(value.val1);
+}
+
+uint64_t CompositeElapsedCounterSource::nanoseconds(Type value) {
+  return (uint64_t)conversion<ElapsedCounterSource, NANOUNITS>(value.val1);
 }

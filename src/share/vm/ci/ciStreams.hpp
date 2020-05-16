@@ -264,7 +264,7 @@ public:
   ciMethodType* get_method_type();
   ciKlass*      get_declared_method_holder();
   int           get_method_holder_index();
-  int           get_method_signature_index();
+  int           get_method_signature_index(const constantPoolHandle& cpool);
 
   // Get the resolved references arrays from the constant pool
   ciObjArray* get_resolved_references();
