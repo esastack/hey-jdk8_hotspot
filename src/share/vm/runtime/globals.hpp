@@ -4014,7 +4014,10 @@ class CommandLineFlags {
                                                                             \
   experimental(bool, UseFastUnorderedTimeStamps, false,                     \
           "Use platform unstable time where supported for timestamps only") \
-                                                                                                      
+                                                                            \
+  JFR_ONLY(product(bool, PrintJFRLog, false,                                \
+          "Enable print jfr detail log."))                                  \
+                                                                                                   
 
 /*
  *  Macros for factoring of globals
