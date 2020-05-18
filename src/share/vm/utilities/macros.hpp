@@ -160,9 +160,17 @@
 #define NOT_NMT_RETURN_(code) { return code; }
 #endif // INCLUDE_NMT
 
-#ifndef INCLUDE_TRACE
-#define INCLUDE_TRACE 1
-#endif // INCLUDE_TRACE
+// Replace trace module and enable jfr default.
+// The macro INCLUDE_JFR makes the jfr writable.
+#ifndef INCLUDE_JFR
+#define INCLUDE_JFR 1
+#endif
+
+#if INCLUDE_JFR
+#define JFR_ONLY(code) code
+#else
+#define JFR_ONLY(code)
+#endif
 
 // COMPILER1 variant
 #ifdef COMPILER1

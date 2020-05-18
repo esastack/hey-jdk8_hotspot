@@ -27,6 +27,8 @@
 
 #include "runtime/os.hpp"
 
+extern "C" jlong _raw_rdtsc(); // In .il file
+
 inline jlong os::rdtsc() { return _raw_rdtsc(); }
 
 #endif // OS_CPU_SOLARIS_X86_VM_OS_SOLARIS_X86_INLINE_HPP

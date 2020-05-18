@@ -1550,7 +1550,6 @@ Node* PhaseIdealLoop::adjust_limit(int stride_con, Node * scale, Node *offset, N
     X = new (C) AddINode(X, _igvn.intcon(1));
     register_new_node(X, pre_ctrl);
   }
-
   // Adjust loop limit
   loop_limit = (stride_con > 0)
                ? (Node*)(new (C) MinINode(loop_limit, X))

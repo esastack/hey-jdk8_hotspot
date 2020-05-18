@@ -30,6 +30,9 @@
 #include "gc_implementation/shared/gcTraceTime.hpp"
 #include "gc_implementation/shared/gcTrace.hpp"
 #include "gc_implementation/shared/spaceDecorator.hpp"
+#if INCLUDE_JFR
+#include "jfr/jfr.hpp"
+#endif
 #include "memory/defNewGeneration.inline.hpp"
 #include "memory/gcLocker.inline.hpp"
 #include "memory/genCollectedHeap.hpp"
@@ -551,10 +554,10 @@ HeapWord* DefNewGeneration::expand_and_allocate(size_t size,
   return allocate(size, is_tlab);
 }
 
-void DefNewGeneration::adjust_desired_tenuring_threshold() {
+void DefNewGeneration::adjust_desired_tenuring_threshold(GCTracer &tracer) {
   // Set the desired survivor size to half the real survivor space
   _tenuring_threshold =
-    age_table()->compute_tenuring_threshold(to()->capacity()/HeapWordSize);
+    age_table()->compute_tenuring_threshold(to()->capacity()/HeapWordSize, tracer);
 }
 
 void DefNewGeneration::collect(bool   full,
@@ -645,7 +648,9 @@ void DefNewGeneration::collect(bool   full,
   rp->process_discovered_references(&is_alive, &keep_alive, &evacuate_followers,
                                     NULL, _gc_timer, gc_tracer.gc_id());
   gc_tracer.report_gc_reference_stats(stats);
-
+  
+  JFR_ONLY(Jfr::weak_oops_do(&is_alive, &keep_alive);)
+  
   if (!_promotion_failed) {
     // Swap the survivor spaces.
     eden()->clear(SpaceDecorator::Mangle);
@@ -664,7 +669,7 @@ void DefNewGeneration::collect(bool   full,
 
     assert(to()->is_empty(), "to space should be empty now");
 
-    adjust_desired_tenuring_threshold();
+    adjust_desired_tenuring_threshold(gc_tracer);
 
     // A successful scavenge should restart the GC time limit count which is
     // for full GC's.
@@ -711,7 +716,6 @@ void DefNewGeneration::collect(bool   full,
 
   gch->trace_heap_after_gc(&gc_tracer);
   gc_tracer.report_tenuring_threshold(tenuring_threshold());
-
   _gc_timer->register_gc_end();
 
   gc_tracer.report_gc_end(_gc_timer->gc_end(), _gc_timer->time_partitions());

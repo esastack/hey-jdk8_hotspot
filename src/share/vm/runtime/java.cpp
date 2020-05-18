@@ -59,7 +59,6 @@
 #include "runtime/timer.hpp"
 #include "runtime/vm_operations.hpp"
 #include "services/memTracker.hpp"
-#include "trace/tracing.hpp"
 #include "utilities/dtrace.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/histogram.hpp"
@@ -96,6 +95,9 @@
 #include "opto/indexSet.hpp"
 #include "opto/runtime.hpp"
 #endif
+#include "jfr/jfrEvents.hpp"
+#include "jfr/support/jfrThreadId.hpp"
+#include "jfr/jfr.hpp"
 
 #ifndef USDT2
 HS_DTRACE_PROBE_DECL(hotspot, vm__shutdown);
@@ -487,6 +489,14 @@ void before_exit(JavaThread * thread) {
     os::infinite_sleep();
   }
 
+  EventThreadEnd event;
+  if (event.should_commit()) {
+    event.set_thread(JFR_THREAD_ID(thread));
+    event.commit();
+  }
+
+  JFR_ONLY(Jfr::on_vm_shutdown();)
+  
   // Terminate watcher thread - must before disenrolling any periodic task
   if (PeriodicTask::num_tasks() > 0)
     WatcherThread::stop();
@@ -519,13 +529,6 @@ void before_exit(JavaThread * thread) {
 
   if (JvmtiExport::should_post_thread_life()) {
     JvmtiExport::post_thread_end(thread);
-  }
-
-
-  EventThreadEnd event;
-  if (event.should_commit()) {
-      event.set_javalangthread(java_lang_Thread::thread_id(thread->threadObj()));
-      event.commit();
   }
 
   // Always call even when there are not JVMTI environments yet, since environments

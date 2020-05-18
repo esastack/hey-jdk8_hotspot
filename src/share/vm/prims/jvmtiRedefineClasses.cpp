@@ -126,7 +126,6 @@ bool VM_RedefineClasses::doit_prologue() {
       _res = JVMTI_ERROR_NULL_POINTER;
       return false;
     }
-
     oop mirror = JNIHandles::resolve_non_null(_class_defs[i].klass);
     // classes for primitives and arrays cannot be redefined
     // check here so following code can assume these classes are InstanceKlass

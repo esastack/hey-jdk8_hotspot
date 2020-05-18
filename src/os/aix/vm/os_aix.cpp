@@ -1500,6 +1500,11 @@ void os::print_dll_info(outputStream *st) {
   LoadedLibraries::print(st);
 }
 
+int os::get_loaded_modules_info(os::LoadedModulesCallbackFunc callback, void *param) {
+  // Not yet implemented.
+  return 0;
+}
+
 void os::print_os_info(outputStream* st) {
   st->print("OS:");
 

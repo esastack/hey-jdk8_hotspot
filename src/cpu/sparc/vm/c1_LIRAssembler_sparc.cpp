@@ -516,6 +516,7 @@ void LIR_Assembler::jobject2reg(jobject o, Register reg) {
     }
 #endif
     int oop_index = __ oop_recorder()->find_index(o);
+    assert(Universe::heap()->is_in_reserved(JNIHandles::resolve(o)), "should be real oop");
     RelocationHolder rspec = oop_Relocation::spec(oop_index);
     __ set(NULL_WORD, reg, rspec); // Will be set when the nmethod is created
   }

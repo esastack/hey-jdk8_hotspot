@@ -4262,6 +4262,8 @@ instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
     preserve_this_klass = this_klass();
   }
 
+  JFR_ONLY(INIT_ID(preserve_this_klass);)
+
   // Create new handle outside HandleMark (might be needed for
   // Extended Class Redefinition)
   instanceKlassHandle this_klass (THREAD, preserve_this_klass);
@@ -5272,4 +5274,23 @@ char* ClassFileParser::skip_over_field_signature(char* signature,
     }
   }
   return NULL;
+}
+
+// Caller responsible for ResourceMark
+// clone stream with rewound position
+const ClassFileStream* ClassFileParser::clone_stream() const {
+  assert(_stream != NULL, "invariant");
+
+  return _stream->clone();
+}
+
+void ClassFileParser::set_klass_to_deallocate(InstanceKlass* klass) {
+
+#ifdef ASSERT
+  if (klass != NULL) {
+    assert(NULL == _klass, "leaking?");
+  }
+#endif
+  // Not _klass_to_deallocate
+  _klass = klass;
 }

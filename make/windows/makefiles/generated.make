@@ -30,9 +30,8 @@
 JvmtiOutDir=jvmtifiles
 !include $(WorkSpace)/make/windows/makefiles/jvmti.make
 
-# Pick up rules for building trace
-TraceOutDir=tracefiles
-!include $(WorkSpace)/make/windows/makefiles/trace.make
+# Pick up rules for building trace -> jfr
+!include $(WorkSpace)/make/windows/makefiles/jfr.make
 
 # Pick up rules for building SA
 !include $(WorkSpace)/make/windows/makefiles/sa.make

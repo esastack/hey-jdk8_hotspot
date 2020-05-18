@@ -29,6 +29,7 @@
 #include "gc_implementation/g1/g1BlockOffsetTable.hpp"
 #include "gc_implementation/g1/g1_specialized_oop_closures.hpp"
 #include "gc_implementation/g1/heapRegionType.hpp"
+#include "gc_implementation/g1/g1HeapRegionTraceType.hpp"
 #include "gc_implementation/g1/survRateGroup.hpp"
 #include "gc_implementation/shared/ageTable.hpp"
 #include "gc_implementation/shared/spaceDecorator.hpp"
@@ -405,7 +406,8 @@ class HeapRegion: public G1OffsetTableContigSpace {
 
   const char* get_type_str() const { return _type.get_str(); }
   const char* get_short_type_str() const { return _type.get_short_str(); }
-
+  G1HeapRegionTraceType::Type get_trace_type() { return _type.get_trace_type(); }
+  
   bool is_free() const { return _type.is_free(); }
 
   bool is_young()    const { return _type.is_young();    }
@@ -667,13 +669,30 @@ class HeapRegion: public G1OffsetTableContigSpace {
     }
   }
 
-  void set_free() { _type.set_free(); }
+  void report_region_type_change(G1HeapRegionTraceType::Type to);
+  
+  void set_free() { 
+    report_region_type_change(G1HeapRegionTraceType::Free);
+    _type.set_free(); 
+  }
 
-  void set_eden()        { _type.set_eden();        }
-  void set_eden_pre_gc() { _type.set_eden_pre_gc(); }
-  void set_survivor()    { _type.set_survivor();    }
+  void set_eden()        { 
+    report_region_type_change(G1HeapRegionTraceType::Eden);
+    _type.set_eden();        
+  }
+  void set_eden_pre_gc() { 
+    report_region_type_change(G1HeapRegionTraceType::Eden);
+    _type.set_eden_pre_gc(); 
+  }
+  void set_survivor()    { 
+    report_region_type_change(G1HeapRegionTraceType::Survivor);
+    _type.set_survivor();    
+  }
 
-  void set_old() { _type.set_old(); }
+  void set_old() { 
+    report_region_type_change(G1HeapRegionTraceType::Old);
+    _type.set_old(); 
+  }
 
   // Determine if an object has been allocated since the last
   // mark performed by the collector. This returns true iff the object

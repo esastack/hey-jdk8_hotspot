@@ -156,6 +156,9 @@ JVM_CopySwapMemory(JNIEnv *env, jobject srcObj, jlong srcOffset,
  * java.lang.Runtime
  */
 JNIEXPORT void JNICALL
+JVM_BeforeHalt();
+
+JNIEXPORT void JNICALL
 JVM_Exit(jint code);
 
 JNIEXPORT void JNICALL

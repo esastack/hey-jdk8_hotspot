@@ -3460,13 +3460,13 @@ bool GraphBuilder::try_inline_intrinsics(ciMethod* callee) {
       if (!InlineArrayCopy) return false;
       break;
 
-#ifdef TRACE_HAVE_INTRINSICS
-    case vmIntrinsics::_classID:
-    case vmIntrinsics::_threadID:
+#ifdef JFR_HAVE_INTRINSICS
+    case vmIntrinsics::_getClassId:
+    case vmIntrinsics::_getEventWriter:
       preserves_state = true;
       cantrap = true;
       break;
-
+    
     case vmIntrinsics::_counterTime:
       preserves_state = true;
       cantrap = false;
@@ -4395,6 +4395,32 @@ void GraphBuilder::append_unsafe_CAS(ciMethod* callee) {
   compilation()->set_has_unsafe_access(true);
 }
 
+static void post_inlining_event(int compile_id,
+                                const char* msg,
+                                bool success,
+                                int bci,
+                                ciMethod* caller,
+                                ciMethod* callee) {
+  EventCompilerInlining event;
+  if (!event.should_commit()) { 
+      return;
+  }
+  assert(caller != NULL, "invariant");
+  assert(callee != NULL, "invariant");
+  assert(event != NULL, "invariant");
+  assert(event.should_commit(), "invariant");
+  JfrStructCalleeMethod callee_struct;
+  callee_struct.set_type(callee->holder()->name()->as_utf8());
+  callee_struct.set_name(callee->name()->as_utf8());
+  callee_struct.set_descriptor(callee->signature()->as_symbol()->as_utf8());
+  event.set_compileId(compile_id);
+  event.set_message(msg);
+  event.set_succeeded(success);
+  event.set_bci(bci);
+  event.set_caller(caller->get_Method());
+  event.set_callee(callee_struct);
+  event.commit();
+}
 
 void GraphBuilder::print_inlining(ciMethod* callee, const char* msg, bool success) {
   CompileLog* log = compilation()->log();
@@ -4411,7 +4437,9 @@ void GraphBuilder::print_inlining(ciMethod* callee, const char* msg, bool succes
         log->inline_fail("reason unknown");
     }
   }
-
+  
+  post_inlining_event(compilation()->env()->task()->compile_id(), msg, success, bci(), method(), callee);
+  
   if (!PrintInlining && !compilation()->method()->has_option("PrintInlining")) {
     return;
   }

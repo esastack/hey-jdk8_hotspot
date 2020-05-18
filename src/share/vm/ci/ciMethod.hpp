@@ -156,7 +156,6 @@ class ciMethod : public ciMetadata {
     }
   }
 
-
   // Method code and related information.
   address code()                                 { if (_code == NULL) load_code(); return _code; }
   int code_size() const                          { check_is_loaded(); return _code_size; }

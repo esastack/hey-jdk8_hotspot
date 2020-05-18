@@ -41,8 +41,8 @@
 #include "opto/regmask.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/vmThread.hpp"
-#include "trace/tracing.hpp"
 #include "utilities/ticks.hpp"
+#include "jfr/jfrEvents.hpp"
 
 class Block;
 class Bundle;
@@ -636,12 +636,12 @@ class Compile : public Phase {
     EventCompilerPhase event;
     if (event.should_commit()) {
       event.set_starttime(C->_latest_stage_start_counter);
+      event.set_endtime(Ticks::now());
       event.set_phase((u1) cpt);
-      event.set_compileID(C->_compile_id);
+      event.set_compileId(C->_compile_id);
       event.set_phaseLevel(level);
       event.commit();
     }
-
 
 #ifndef PRODUCT
     if (_printer) _printer->print_method(this, CompilerPhaseTypeHelper::to_string(cpt), level);
@@ -653,11 +653,13 @@ class Compile : public Phase {
     EventCompilerPhase event;
     if (event.should_commit()) {
       event.set_starttime(C->_latest_stage_start_counter);
+      event.set_endtime(Ticks::now());
       event.set_phase((u1) PHASE_END);
-      event.set_compileID(C->_compile_id);
+      event.set_compileId(C->_compile_id);
       event.set_phaseLevel(level);
       event.commit();
-    }
+    }  
+
 #ifndef PRODUCT
     if (_printer) _printer->end_method();
 #endif
