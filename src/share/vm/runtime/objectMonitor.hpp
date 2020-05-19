@@ -224,10 +224,6 @@ public:
   void      ctAsserts () ;
   void      ExitEpilog (Thread * Self, ObjectWaiter * Wakee) ;
   bool      ExitSuspendEquivalent (JavaThread * Self) ;
-  void      post_monitor_wait_event(EventJavaMonitorWait * event,
-                                                   jlong notifier_tid,
-                                                   jlong timeout,
-                                                   bool timedout);
 
  private:
   friend class ObjectSynchronizer;

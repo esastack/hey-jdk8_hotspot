@@ -106,20 +106,6 @@ void GC_locker::verify_critical_count() {
 }
 #endif
 
-bool GC_locker::check_active_before_gc() {
-  assert(SafepointSynchronize::is_at_safepoint(), "only read at safepoint");
-  if (is_active() && !_needs_gc) {
-    verify_critical_count();
-    _needs_gc = true;
-    if (PrintJNIGCStalls && PrintGCDetails) {
-      ResourceMark rm; // JavaThread::name() allocates to convert to UTF8
-      gclog_or_tty->print_cr("%.3f: Setting _needs_gc. Thread \"%s\" %d locked.",
-                             gclog_or_tty->time_stamp().seconds(), Thread::current()->name(), _jni_lock_count);
-    }
-
-  }
-  return is_active();
-}
 
 void GC_locker::stall_until_clear() {
   assert(!JavaThread::current()->in_critical(), "Would deadlock");

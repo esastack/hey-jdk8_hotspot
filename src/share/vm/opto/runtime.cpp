@@ -366,54 +366,6 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_nozero_C(Klass* array_type, int len
 
 JRT_END
 
-// array allocation without zeroing
-JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_nozero_C(Klass* array_type, int len, JavaThread *thread))
-  JRT_BLOCK;
-#ifndef PRODUCT
-  SharedRuntime::_new_array_ctr++;            // new array requires GC
-#endif
-  assert(check_compiled_frame(thread), "incorrect caller");
-
-  // Scavenge and allocate an instance.
-  oop result;
-
-  assert(array_type->oop_is_typeArray(), "should be called only for type array");
-  // The oopFactory likes to work with the element type.
-  BasicType elem_type = TypeArrayKlass::cast(array_type)->element_type();
-  result = oopFactory::new_typeArray_nozero(elem_type, len, THREAD);
-
-  // Pass oops back through thread local storage.  Our apparent type to Java
-  // is that we return an oop, but we can block on exit from this routine and
-  // a GC can trash the oop in C's return register.  The generated stub will
-  // fetch the oop from TLS after any possible GC.
-  deoptimize_caller_frame(thread, HAS_PENDING_EXCEPTION);
-  thread->set_vm_result(result);
-  JRT_BLOCK_END;
-
-  if (GraphKit::use_ReduceInitialCardMarks()) {
-    // inform GC that we won't do card marks for initializing writes.
-    new_store_pre_barrier(thread);
-  }
-
-  oop result = thread->vm_result();
-  if ((len > 0) && (result != NULL) &&
-      is_deoptimized_caller_frame(thread)) {
-    // Zero array here if the caller is deoptimized.
-    int size = ((typeArrayOop)result)->object_size();
-    BasicType elem_type = TypeArrayKlass::cast(array_type)->element_type();
-    const size_t hs = arrayOopDesc::header_size(elem_type);
-    // Align to next 8 bytes to avoid trashing arrays's length.
-    const size_t aligned_hs = align_object_offset(hs);
-    HeapWord* obj = (HeapWord*)result;
-    if (aligned_hs > hs) {
-      Copy::zero_to_words(obj+hs, aligned_hs-hs);
-    }
-    // Optimized zeroing.
-    Copy::fill_to_aligned_words(obj+aligned_hs, size-aligned_hs);
-  }
-
-JRT_END
-
 // Note: multianewarray for one dimension is handled inline by GraphKit::new_array.
 
 // multianewarray for 2 dimensions

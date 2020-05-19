@@ -3838,34 +3838,6 @@ int TypeAryPtr::stable_dimension() const {
   return dim;
 }
 
-//------------------------------cast_to_stable---------------------------------
-const TypeAryPtr* TypeAryPtr::cast_to_stable(bool stable, int stable_dimension) const {
-  if (stable_dimension <= 0 || (stable_dimension == 1 && stable == this->is_stable()))
-    return this;
-
-  const Type* elem = this->elem();
-  const TypePtr* elem_ptr = elem->make_ptr();
-
-  if (stable_dimension > 1 && elem_ptr != NULL && elem_ptr->isa_aryptr()) {
-    // If this is widened from a narrow oop, TypeAry::make will re-narrow it.
-    elem = elem_ptr = elem_ptr->is_aryptr()->cast_to_stable(stable, stable_dimension - 1);
-  }
-
-  const TypeAry* new_ary = TypeAry::make(elem, size(), stable);
-
-  return make(ptr(), const_oop(), new_ary, klass(), klass_is_exact(), _offset, _instance_id);
-}
-
-//-----------------------------stable_dimension--------------------------------
-int TypeAryPtr::stable_dimension() const {
-  if (!is_stable())  return 0;
-  int dim = 1;
-  const TypePtr* elem_ptr = elem()->make_ptr();
-  if (elem_ptr != NULL && elem_ptr->isa_aryptr())
-    dim += elem_ptr->is_aryptr()->stable_dimension();
-  return dim;
-}
-
 //------------------------------eq---------------------------------------------
 // Structural equality check for Type representations
 bool TypeAryPtr::eq( const Type *t ) const {

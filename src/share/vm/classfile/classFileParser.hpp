@@ -47,6 +47,7 @@ class ClassFileParser VALUE_OBJ_CLASS_SPEC {
   bool _relax_verify;
   u2   _major_version;
   u2   _minor_version;
+  u2   _this_class_index;
   Symbol* _class_name;
   ClassLoaderData* _loader_data;
   KlassHandle _host_klass;
@@ -90,6 +91,7 @@ class ClassFileParser VALUE_OBJ_CLASS_SPEC {
   void create_combined_annotations(TRAPS);
 
   void init_parsed_class_attributes(ClassLoaderData* loader_data) {
+    _this_class_index = 0;
     _loader_data = loader_data;
     _synthetic_flag = false;
     _sourcefile_index = 0;
