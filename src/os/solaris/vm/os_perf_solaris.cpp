@@ -559,7 +559,11 @@ bool SystemProcessInterface::SystemProcesses::ProcessIterator::is_valid_entry(st
 
 char* SystemProcessInterface::SystemProcesses::ProcessIterator::allocate_string(const char* str) const {
   if (str != NULL) {
-    return os::strdup_check_oom(str, mtInternal);
+    size_t len = strlen(str);
+    char* tmp = NEW_C_HEAP_ARRAY(char, len+1, mtInternal);
+    strncpy(tmp, str, len);
+    tmp[len] = '\0';
+    return tmp;
   }
   return NULL;
 }

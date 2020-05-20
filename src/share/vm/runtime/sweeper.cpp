@@ -39,7 +39,7 @@
 #include "runtime/thread.inline.hpp"
 #include "runtime/vm_operations.hpp"
 #include "utilities/events.hpp"
-#include "utilities/ticks.inline.hpp"
+#include "utilities/ticks.hpp"
 #include "utilities/xmlstream.hpp"
 
 PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC

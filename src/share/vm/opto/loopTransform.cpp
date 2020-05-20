@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1550,7 +1550,6 @@ Node* PhaseIdealLoop::adjust_limit(int stride_con, Node * scale, Node *offset, N
     X = new (C) AddINode(X, _igvn.intcon(1));
     register_new_node(X, pre_ctrl);
   }
-  
   // Adjust loop limit
   loop_limit = (stride_con > 0)
                ? (Node*)(new (C) MinINode(loop_limit, X))
@@ -1690,7 +1689,8 @@ void PhaseIdealLoop::add_constraint( int stride_con, int scale_con, Node *offset
     //       I > (low_limit-(offset+1))/scale
     //   )
 
-    *main_limit = adjust_limit(stride_con, scale, plus_one, low_limit, *main_limit, pre_ctrl, false);
+    *main_limit = adjust_limit(stride_con, scale, plus_one, low_limit, *main_limit, pre_ctrl,
+                               false);
   }
 }
 
@@ -2230,6 +2230,13 @@ bool IdealLoopTree::policy_do_remove_empty_loop( PhaseIdealLoop *phase ) {
     // We also need to replace the original limit to collapse loop exit.
     Node* cmp = cl->loopexit()->cmp_node();
     assert(cl->limit() == cmp->in(2), "sanity");
+    // Duplicate cmp node if it has other users
+    if (cmp->outcnt() > 1) {
+      cmp = cmp->clone();
+      cmp = phase->_igvn.register_new_node_with_optimizer(cmp);
+      BoolNode *bol = cl->loopexit()->in(CountedLoopEndNode::TestValue)->as_Bool();
+      phase->_igvn.replace_input_of(bol, 1, cmp); // put bol on worklist
+    }
     phase->_igvn._worklist.push(cmp->in(2)); // put limit on worklist
     phase->_igvn.replace_input_of(cmp, 2, exact_limit); // put cmp on worklist
   }

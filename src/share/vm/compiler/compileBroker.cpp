@@ -2046,7 +2046,6 @@ void CompileBroker::invoke_compiler_on_method(CompileTask* task) {
     }
     // simulate crash during compilation
     assert(task->compile_id() != CICrashAt, "just as planned");
-    
     if (event.should_commit()) {
       post_compilation_event(&event, task);
     }

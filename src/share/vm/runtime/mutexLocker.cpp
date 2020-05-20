@@ -298,7 +298,6 @@ void mutex_init() {
 #endif
   
 #ifndef SUPPORTS_NATIVE_CX8
-
   def(UnsafeJlong_lock             , Mutex,   special,     false);
 #endif
 }

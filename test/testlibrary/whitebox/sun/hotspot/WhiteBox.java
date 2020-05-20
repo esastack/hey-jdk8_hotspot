@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,6 +19,7 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
+ *
  */
 
 package sun.hotspot;
@@ -29,6 +30,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import java.security.BasicPermission;
 import java.util.Objects;
 import java.net.URL;
@@ -36,6 +38,7 @@ import java.net.URL;
 import sun.hotspot.parser.DiagnosticCommand;
 
 public class WhiteBox {
+
   @SuppressWarnings("serial")
   public static class WhiteBoxPermission extends BasicPermission {
     public WhiteBoxPermission(String s) {
@@ -77,6 +80,7 @@ public class WhiteBox {
   public native int  getHeapOopSize();
   public native int  getVMPageSize();
   public native long getVMLargePageSize();
+  
   public native long getHeapSpaceAlignment();
   public native long getHeapAlignment();
 
@@ -181,7 +185,7 @@ public class WhiteBox {
   }
   public native boolean isMethodCompiled(Executable method, boolean isOsr);
   public        boolean isMethodCompilable(Executable method) {
-    return isMethodCompilable(method, -2 /*any*/);
+    return isMethodCompilable(method, -1 /*any*/);
   }
   public        boolean isMethodCompilable(Executable method, int compLevel) {
     return isMethodCompilable(method, compLevel, false /*not osr*/);
@@ -219,7 +223,7 @@ public class WhiteBox {
   }
   public native int     deoptimizeMethod(Executable method, boolean isOsr);
   public        void    makeMethodNotCompilable(Executable method) {
-    makeMethodNotCompilable(method, -2 /*any*/);
+    makeMethodNotCompilable(method, -1 /*any*/);
   }
   public        void    makeMethodNotCompilable(Executable method, int compLevel) {
     makeMethodNotCompilable(method, compLevel, false /*not osr*/);
@@ -231,7 +235,7 @@ public class WhiteBox {
   public native int     getMethodCompilationLevel(Executable method, boolean isOsr);
   public native boolean testSetDontInlineMethod(Executable method, boolean value);
   public        int     getCompileQueuesSize() {
-    return getCompileQueueSize(-2 /*any*/);
+    return getCompileQueueSize(-1 /*any*/);
   }
   public native int     getCompileQueueSize(int compLevel);
   public native boolean testSetForceInlineMethod(Executable method, boolean value);
@@ -353,6 +357,12 @@ public class WhiteBox {
   // CPU features
   public native String getCPUFeatures();
 
+  // Native extensions
+  public native long getHeapUsageForContext(int context);
+  public native long getHeapRegionCountForContext(int context);
+  public native int getContextForObject(Object obj);
+  public native void printRegionInfo(int context);
+
   // VM flags
   public native boolean isConstantVMFlag(String name);
   public native boolean isLockedVMFlag(String name);
@@ -403,6 +413,7 @@ public class WhiteBox {
     }
     return offset;
   }
+
   public native Boolean getMethodBooleanOption(Executable method, String name);
   public native Long    getMethodIntxOption(Executable method, String name);
   public native Long    getMethodUintxOption(Executable method, String name);

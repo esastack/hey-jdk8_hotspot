@@ -24,7 +24,7 @@
 
 #include "precompiled.hpp"
 #include "runtime/os.hpp"
-#include "utilities/ticks.inline.hpp"
+#include "utilities/ticks.hpp"
 
 #ifdef X86
 #include "rdtsc_x86.hpp"

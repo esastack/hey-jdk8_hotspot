@@ -25,7 +25,7 @@
 #include "precompiled.hpp"
 #include "gc_implementation/shared/gcTimer.hpp"
 #include "utilities/growableArray.hpp"
-#include "utilities/ticks.inline.hpp"
+#include "utilities/ticks.hpp"
 
 // the "time" parameter for most functions
 // has a default value set by Ticks::now()

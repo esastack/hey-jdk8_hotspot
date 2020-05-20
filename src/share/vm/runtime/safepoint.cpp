@@ -315,11 +315,9 @@ void SafepointSynchronize::begin() {
         if (TraceSafepoint && Verbose) cur_state->print();
       }
     }
-    if (iterations == 0) {
-      initial_running = still_running;
-      if (PrintSafepointStatistics) {
-        begin_statistics(nof_threads, still_running);
-      }
+
+    if (PrintSafepointStatistics && iterations == 0) {
+      begin_statistics(nof_threads, still_running);
     }
     if (still_running > 0) {
       // Check for if it takes to long

@@ -1096,7 +1096,6 @@ void ParNewGeneration::collect(bool   full,
 
   gch->trace_heap_after_gc(&gc_tracer);
   gc_tracer.report_tenuring_threshold(tenuring_threshold());
-  
   _gc_timer->register_gc_end();
 
   gc_tracer.report_gc_end(_gc_timer->gc_end(), _gc_timer->time_partitions());

@@ -494,6 +494,7 @@ class VM_RedefineClasses: public VM_Operation {
 
   void flush_dependent_code(instanceKlassHandle k_h, TRAPS);
 
+
   static void dump_methods();
 
   // Check that there are no old or obsolete methods

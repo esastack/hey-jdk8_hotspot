@@ -33,7 +33,7 @@
 #include "memory/referenceProcessorStats.hpp"
 #include "runtime/os.hpp"
 #include "utilities/globalDefinitions.hpp"
-#include "utilities/ticks.inline.hpp"
+#include "utilities/ticks.hpp"
 #if INCLUDE_ALL_GCS
 #include "gc_implementation/g1/evacuationInfo.hpp"
 #endif

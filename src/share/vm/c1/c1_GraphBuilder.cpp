@@ -4438,7 +4438,6 @@ void GraphBuilder::print_inlining(ciMethod* callee, const char* msg, bool succes
     }
   }
   
-
   post_inlining_event(compilation()->env()->task()->compile_id(), msg, success, bci(), method(), callee);
   
   if (!PrintInlining && !compilation()->method()->has_option("PrintInlining")) {

@@ -236,6 +236,7 @@ public:
   // Allocate out of this class loader data
   MetaWord* allocate(size_t size);
 
+public:
 
   bool is_alive(BoolObjectClosure* is_alive_closure) const;
 

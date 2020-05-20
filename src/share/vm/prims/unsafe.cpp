@@ -1249,7 +1249,6 @@ static void post_thread_park_event(EventThreadPark* event, const oop obj, jlong 
 UNSAFE_ENTRY(void, Unsafe_Park(JNIEnv *env, jobject unsafe, jboolean isAbsolute, jlong time))
   UnsafeWrapper("Unsafe_Park");
   EventThreadPark event;
-
 #ifndef USDT2
   HS_DTRACE_PROBE3(hotspot, thread__park__begin, thread->parker(), (int) isAbsolute, time);
 #else /* USDT2 */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -614,6 +614,9 @@ class CommandLineFlags {
   product(bool, UseSHA, false,                                              \
           "Control whether SHA instructions can be used on SPARC")          \
                                                                             \
+  product(bool, UseGHASHIntrinsics, false,                                  \
+          "Use intrinsics for GHASH versions of crypto")                    \
+                                                                            \
   product(uintx, LargePageSizeInBytes, 0,                                   \
           "Large page size (0 to let VM choose the page size)")             \
                                                                             \
@@ -1188,9 +1191,6 @@ class CommandLineFlags {
                                                                             \
   product(bool, ReduceSignalUsage, false,                                   \
           "Reduce the use of OS signals in Java and/or the VM")             \
-                                                                            \
-  develop_pd(bool, ShareVtableStubs,                                        \
-          "Share vtable stubs (smaller code but worse branch prediction")   \
                                                                             \
   develop(bool, LoadLineNumberTables, true,                                 \
           "Tell whether the class file parser loads line number tables")    \
@@ -4017,7 +4017,6 @@ class CommandLineFlags {
                                                                             \
   JFR_ONLY(product(bool, PrintJFRLog, false,                                \
           "Enable print jfr detail log."))                                  \
-                                                                                                   
 
 /*
  *  Macros for factoring of globals

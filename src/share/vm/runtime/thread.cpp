@@ -345,6 +345,7 @@ Thread::~Thread() {
   // Reclaim the objectmonitors from the omFreeList of the moribund thread.
   ObjectSynchronizer::omFlush (this) ;
 
+  
   // stack_base can be NULL if the thread is never started or exited before
   // record_stack_base_and_size called. Although, we would like to ensure
   // that all started threads do call record_stack_base_and_size(), there is
@@ -837,7 +838,9 @@ bool Thread::claim_oops_do_par_case(int strong_roots_parity) {
 }
 
 void Thread::oops_do(OopClosure* f, CLDClosure* cld_f, CodeBlobClosure* cf) {
-  active_handles()->oops_do(f);
+  if (active_handles() != NULL) {
+    active_handles()->oops_do(f);
+  }
   // Do oop for ThreadShadow
   f->do_oop((oop*)&_pending_exception);
   handle_area()->oops_do(f);
@@ -1809,6 +1812,7 @@ void JavaThread::exit(bool destroy_vm, ExitType exit_type) {
     // Call after last event on thread
     JFR_ONLY(Jfr::on_thread_exit(this);)
     
+
     // Call Thread.exit(). We try 3 times in case we got another Thread.stop during
     // the execution of the method. If that is not enough, then we don't really care. Thread.stop
     // is deprecated anyhow.
@@ -3574,6 +3578,7 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   reset_vm_info_property(CHECK_0);
 
   quicken_jni_functions();
+
 
   // Set flag that basic initialization has completed. Used by exceptions and various
   // debug stuff, that does not work until all basic classes have been initialized.

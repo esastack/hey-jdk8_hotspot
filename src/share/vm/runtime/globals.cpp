@@ -43,7 +43,7 @@
 #ifdef SHARK
 #include "shark/shark_globals.hpp"
 #endif
-#include <iostream>
+
 PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
 RUNTIME_FLAGS(MATERIALIZE_DEVELOPER_FLAG, MATERIALIZE_PD_DEVELOPER_FLAG, \
@@ -543,7 +543,7 @@ inline bool str_equal(const char* s, const char* q, size_t len) {
 }
 
 // Search the flag table for a named flag
-Flag* Flag::find_flag(const char* name, size_t length, bool allow_locked, bool return_flag) { 
+Flag* Flag::find_flag(const char* name, size_t length, bool allow_locked, bool return_flag) {
   for (Flag* current = &flagTable[0]; current->_name != NULL; current++) {
     if (str_equal(current->_name, name, length)) {
       // Found a matching entry.

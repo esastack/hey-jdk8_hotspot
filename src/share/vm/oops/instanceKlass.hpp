@@ -225,9 +225,9 @@ class InstanceKlass: public Klass {
   // _is_marked_dependent can be set concurrently, thus cannot be part of the
   // _misc_flags.
   bool            _is_marked_dependent;  // used for marking during flushing and deoptimization
-  bool            _has_unloaded_dependent;
   bool            _is_being_redefined;   // used for locking redefinition
-  
+  bool            _has_unloaded_dependent;
+
   enum {
     _misc_rewritten                = 1 << 0, // methods rewritten.
     _misc_has_nonstatic_fields     = 1 << 1, // for sizing with UseCompressedOops
@@ -241,7 +241,7 @@ class InstanceKlass: public Klass {
   u2              _misc_flags;
   u2              _minor_version;        // minor version number of class file
   u2              _major_version;        // major version number of class file
-  Thread*         _init_thread;          // Pointer to current thread doing initialization (to handle recusive initialization)
+  Thread*         _init_thread;          // Pointer to current thread doing initialization (to handle recursive initialization)
   int             _vtable_len;           // length of Java vtable (in words)
   int             _itable_len;           // length of Java itable (in words)
   OopMapCache*    volatile _oop_map_cache;   // OopMapCache for all methods in the klass (allocated lazily)
@@ -906,13 +906,7 @@ class InstanceKlass: public Klass {
   bool super_types_do(SuperTypeClosure* blk);
 
   // Casting from Klass*
-  static InstanceKlass* cast(Klass* k) {
-    assert(k == NULL || k->is_klass(), "must be");
-    assert(k == NULL || k->oop_is_instance(), "cast to InstanceKlass");
-    return (InstanceKlass*) k;
-  }
-
-  static const InstanceKlass* cast(const Klass* k) {
+  static InstanceKlass* cast(const Klass* k) {
     assert(k == NULL || k->is_klass(), "must be");
     assert(k == NULL || k->oop_is_instance(), "cast to InstanceKlass");
     return (InstanceKlass*) k;

@@ -28,7 +28,6 @@
 #include "oops/oop.inline.hpp"
 #include "jfr/jfrEvents.hpp"
 
-
 void MetaspaceTracer::report_gc_threshold(size_t old_val,
                                           size_t new_val,
                                           MetaspaceGCThresholdUpdater::Type updater) const {

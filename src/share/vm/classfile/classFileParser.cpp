@@ -3885,7 +3885,7 @@ instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
 
   // This class and superclass
   u2 this_class_index = cfs->get_u2_fast();
-  _this_class_index = this_class_index; // Save class index.
+  _this_class_index = this_class_index; //used by jfr
   check_property(
     valid_cp_range(this_class_index, cp_size) &&
       cp->tag_at(this_class_index).is_unresolved_klass(),

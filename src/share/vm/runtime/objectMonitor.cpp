@@ -384,7 +384,7 @@ void ATTR ObjectMonitor::enter(TRAPS) {
     event.set_monitorClass(((oop)this->object())->klass());
     event.set_address((uintptr_t)(this->object_addr()));
   }
-  
+
   { // Change java thread status to indicate blocked on monitor enter.
     JavaThreadBlockedOnMonitorEnterState jtbmes(jt, this);
 
@@ -1477,7 +1477,7 @@ void ObjectMonitor::wait(jlong millis, bool interruptible, TRAPS) {
 
    // Throw IMSX or IEX.
    CHECK_OWNER();
-   
+
    EventJavaMonitorWait event;
 
    // check for a pending interrupt

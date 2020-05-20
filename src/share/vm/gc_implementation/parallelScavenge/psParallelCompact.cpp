@@ -2418,7 +2418,7 @@ void PSParallelCompact::marking_phase(ParCompactionManager* cm,
 
   // This is the point where the entire marking should have completed.
   assert(cm->marking_stacks_empty(), "Marking should have completed");
- 
+
   // Follow system dictionary roots and unload classes.
   bool purged_class = SystemDictionary::do_unloading(is_alive_closure());
 

@@ -28,6 +28,7 @@
  * @library /testlibrary
  * @run main TestEnableTracing
  */
+
 /* The Trace function has been replaced by Jfr and enabled default. 
  * Ignore these testcase.
 */
@@ -43,6 +44,7 @@ public class TestEnableTracing {
         if (output.getStderr().contains(OPENJDK_MARK)) {
 //            output.shouldMatch("^Class Load");
 //            output.shouldContain("Loaded Class ="); // verify TraceStream print_val Klass*
+
         }
         output.shouldHaveExitValue(0);
 

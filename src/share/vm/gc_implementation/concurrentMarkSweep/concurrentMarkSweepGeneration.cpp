@@ -869,6 +869,10 @@ ConcurrentMarkSweepGeneration::unsafe_max_alloc_nogc() const {
   return _cmsSpace->max_alloc_in_words() * HeapWordSize;
 }
 
+size_t ConcurrentMarkSweepGeneration::used_stable() const {
+  return cmsSpace()->used_stable();
+}
+
 size_t ConcurrentMarkSweepGeneration::max_available() const {
   return free() + _virtual_space.uncommitted_size();
 }
@@ -1924,9 +1928,7 @@ NOT_PRODUCT(
 
     // Has the GC time limit been exceeded?
     DefNewGeneration* young_gen = _young_gen->as_DefNewGeneration();
-    size_t max_eden_size = young_gen->max_capacity() -
-                           young_gen->to()->capacity() -
-                           young_gen->from()->capacity();
+    size_t max_eden_size = young_gen->max_eden_size();
     GenCollectedHeap* gch = GenCollectedHeap::heap();
     GCCause::Cause gc_cause = gch->gc_cause();
     size_policy()->check_gc_overhead_limit(_young_gen->used(),
@@ -1955,6 +1957,8 @@ void CMSCollector::compute_new_size() {
   FreelistLocker z(this);
   MetaspaceGC::compute_new_size();
   _cmsGen->compute_new_size_free_list();
+  // recalculate CMS used space after CMS collection
+  _cmsGen->cmsSpace()->recalculate_used_stable();
 }
 
 // A work method used by foreground collection to determine
@@ -2768,6 +2772,7 @@ void ConcurrentMarkSweepGeneration::gc_prologue(bool full) {
 
   _capacity_at_prologue = capacity();
   _used_at_prologue = used();
+  _cmsSpace->recalculate_used_stable();
 
   // Delegate to CMScollector which knows how to coordinate between
   // this and any other CMS generations that it is responsible for
@@ -2837,6 +2842,7 @@ void CMSCollector::gc_epilogue(bool full) {
   _eden_chunk_index = 0;
 
   size_t cms_used   = _cmsGen->cmsSpace()->used();
+  _cmsGen->cmsSpace()->recalculate_used_stable();
 
   // update performance counters - this uses a special version of
   // update_counters() that allows the utilization to be passed as a
@@ -3672,6 +3678,7 @@ void CMSCollector::checkpointRootsInitial(bool asynch) {
     _collectorState = Marking;
   }
   SpecializationStats::print();
+  _cmsGen->cmsSpace()->recalculate_used_stable();
 }
 
 void CMSCollector::checkpointRootsInitialWork(bool asynch) {
@@ -3904,6 +3911,7 @@ class CMSConcMarkingTerminatorTerminator: public TerminatorTerminator {
     _task = task;
   }
 };
+
 
 // MT Concurrent Marking Task
 class CMSConcMarkingTask: public YieldingFlexibleGangTask {
@@ -5066,10 +5074,12 @@ void CMSCollector::checkpointRootsFinal(bool asynch,
                     Mutex::_no_safepoint_check_flag);
     assert(!init_mark_was_synchronous, "but that's impossible!");
     checkpointRootsFinalWork(asynch, clear_all_soft_refs, false);
+    _cmsGen->cmsSpace()->recalculate_used_stable();
   } else {
     // already have all the locks
     checkpointRootsFinalWork(asynch, clear_all_soft_refs,
                              init_mark_was_synchronous);
+    _cmsGen->cmsSpace()->recalculate_used_stable();
   }
   verify_work_stacks_empty();
   verify_overflow_empty();
@@ -6260,7 +6270,7 @@ void CMSCollector::refProcessingWork(bool asynch, bool clear_all_soft_refs) {
 
   // This is the point where the entire marking should have completed.
   verify_work_stacks_empty();
-  
+
   if (should_unload_classes()) {
     {
       GCTraceTime t("class unloading", PrintGCDetails, false, _gc_timer_cm, _gc_tracer_cm->gc_id());
@@ -6368,6 +6378,10 @@ void CMSCollector::sweep(bool asynch) {
       // Update heap occupancy information which is used as
       // input to soft ref clearing policy at the next gc.
       Universe::update_heap_info_at_gc();
+
+      // recalculate CMS used space after CMS collection
+      _cmsGen->cmsSpace()->recalculate_used_stable();
+
       _collectorState = Resizing;
     }
   } else {
@@ -6467,6 +6481,7 @@ void ConcurrentMarkSweepGeneration::update_gc_stats(int current_level,
     // Gather statistics on the young generation collection.
     collector()->stats().record_gc0_end(used());
   }
+  _cmsSpace->recalculate_used_stable();
 }
 
 CMSAdaptiveSizePolicy* ConcurrentMarkSweepGeneration::size_policy() {

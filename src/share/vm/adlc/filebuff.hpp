@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,7 +46,6 @@ class ArchDesc;
 // This class defines a nicely behaved buffer of text.  Entire file of text
 // is read into buffer at creation, with sentinels at start and end.
 class FileBuff {
-  friend class FileBuffRegion;
  private:
   long  _bufferSize;            // Size of text holding buffer.
   long  _offset;                // Expected filepointer offset.

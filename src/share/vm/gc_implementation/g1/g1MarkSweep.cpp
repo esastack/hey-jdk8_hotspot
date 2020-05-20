@@ -262,6 +262,7 @@ void G1MarkSweep::mark_sweep_phase3() {
   // Now adjust pointers in remaining weak roots.  (All of which should
   // have been cleared if they pointed to non-surviving objects.)
   JNIHandles::weak_oops_do(&GenMarkSweep::adjust_pointer_closure);
+  
   JFR_ONLY(Jfr::weak_oops_do(&GenMarkSweep::adjust_pointer_closure));
 
   if (G1StringDedup::is_enabled()) {

@@ -1173,7 +1173,6 @@ uint PhaseChaitin::Split(uint maxlrg, ResourceArea* split_arena) {
              // pressure area.  Spill it down immediately.
              (defup && is_high_pressure(b,&deflrg,insidx) && !n->is_SpillCopy())) ) {
           assert( !n->rematerialize(), "" );
-          assert( !n->is_SpillCopy(), "" );
           // Do a split at the def site.
           maxlrg = split_DEF( n, b, insidx, maxlrg, Reachblock, debug_defs, splits, slidx );
           // If it wasn't split bail

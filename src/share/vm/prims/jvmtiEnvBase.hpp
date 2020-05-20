@@ -32,6 +32,7 @@
 #include "runtime/fieldDescriptor.hpp"
 #include "runtime/frame.hpp"
 #include "runtime/handles.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/thread.hpp"
 #include "runtime/vm_operations.hpp"
 #include "utilities/growableArray.hpp"
@@ -97,7 +98,7 @@ class JvmtiEnvBase : public CHeapObj<mtInternal> {
   const void *_env_local_storage;     // per env agent allocated data.
   jvmtiEventCallbacks _event_callbacks;
   jvmtiExtEventCallbacks _ext_event_callbacks;
-  JvmtiTagMap* _tag_map;
+  JvmtiTagMap* volatile _tag_map;
   JvmtiEnvEventEnable _env_event_enable;
   jvmtiCapabilities _current_capabilities;
   jvmtiCapabilities _prohibited_capabilities;
