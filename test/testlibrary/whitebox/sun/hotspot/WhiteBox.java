@@ -101,11 +101,6 @@ public class WhiteBox {
   public native boolean isMonitorInflated(Object obj);
 
   public native void forceSafepoint();
-  
-  // Resource/Class Lookup Cache
-  public native boolean classKnownToNotExist(ClassLoader loader, String name);
-  public native URL[] getLookupCacheURLs(ClassLoader loader);
-  public native int[] getLookupCacheMatches(ClassLoader loader, String name);
 
   private native long getConstantPool0(Class<?> aClass);
   public         long getConstantPool(Class<?> aClass) {

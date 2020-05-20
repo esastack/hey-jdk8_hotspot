@@ -712,15 +712,6 @@ bool klassVtable::needs_new_vtable_entry(methodHandle target_method,
   if (found_pkg_prvt_method) {
      return true;
   }
-
-  // If found_pkg_prvt_method is set, then the ONLY matching method in the
-  // superclasses is package private in another package. That matching method will
-  // prevent a miranda vtable entry from being created. Because the target method can not
-  // override the package private method in another package, then it needs to be the root
-  // for its own vtable entry.
-  if (found_pkg_prvt_method) {
-     return true;
-  }
   
   // if the target method is public or protected it may have a matching
   // miranda method in the super, whose entry it should re-use.

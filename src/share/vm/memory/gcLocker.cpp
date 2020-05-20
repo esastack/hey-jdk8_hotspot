@@ -77,35 +77,6 @@ bool GC_locker::check_active_before_gc() {
   return is_active();
 }
 
-#ifdef ASSERT
-volatile jint GC_locker::_debug_jni_lock_count = 0;
-#endif
-
-
-#ifdef ASSERT
-void GC_locker::verify_critical_count() {
-  if (SafepointSynchronize::is_at_safepoint()) {
-    assert(!needs_gc() || _debug_jni_lock_count == _jni_lock_count, "must agree");
-    int count = 0;
-    // Count the number of threads with critical operations in progress
-    for (JavaThread* thr = Threads::first(); thr; thr = thr->next()) {
-      if (thr->in_critical()) {
-        count++;
-      }
-    }
-    if (_jni_lock_count != count) {
-      tty->print_cr("critical counts don't match: %d != %d", _jni_lock_count, count);
-      for (JavaThread* thr = Threads::first(); thr; thr = thr->next()) {
-        if (thr->in_critical()) {
-          tty->print_cr(INTPTR_FORMAT " in_critical %d", p2i(thr), thr->in_critical());
-        }
-      }
-    }
-    assert(_jni_lock_count == count, "must be equal");
-  }
-}
-#endif
-
 
 void GC_locker::stall_until_clear() {
   assert(!JavaThread::current()->in_critical(), "Would deadlock");

@@ -75,8 +75,8 @@ public class JMapHProfLargeHeapTest {
             }
         }
 
-        // Small heap 22 megabytes, should create 1.0.1 file format
-        testHProfFileFormat("-Xmx1g", 22 * M, HPROF_HEADER_1_0_1);
+        // Small heap 22 megabytes, should create 1.0.2 file format(Always use.)
+        testHProfFileFormat("-Xmx1g", 22 * M, HPROF_HEADER_1_0_2);
 
         /**
          * This test was deliberately commented out since the test system lacks

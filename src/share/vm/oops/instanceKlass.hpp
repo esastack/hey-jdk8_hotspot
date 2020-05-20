@@ -906,13 +906,7 @@ class InstanceKlass: public Klass {
   bool super_types_do(SuperTypeClosure* blk);
 
   // Casting from Klass*
-  static InstanceKlass* cast(Klass* k) {
-    assert(k == NULL || k->is_klass(), "must be");
-    assert(k == NULL || k->oop_is_instance(), "cast to InstanceKlass");
-    return (InstanceKlass*) k;
-  }
-
-  static const InstanceKlass* cast(const Klass* k) {
+  static InstanceKlass* cast(const Klass* k) {
     assert(k == NULL || k->is_klass(), "must be");
     assert(k == NULL || k->oop_is_instance(), "cast to InstanceKlass");
     return (InstanceKlass*) k;

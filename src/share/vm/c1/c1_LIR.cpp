@@ -2093,15 +2093,6 @@ void LIR_OpAssert::print_instr(outputStream* out) const {
 }
 #endif
 
-#ifdef ASSERT
-void LIR_OpAssert::print_instr(outputStream* out) const {
-  print_condition(out, condition()); out->print(" ");
-  in_opr1()->print(out);             out->print(" ");
-  in_opr2()->print(out);             out->print(", \"");
-  out->print("%s", msg());          out->print("\"");
-}
-#endif
-
 
 void LIR_OpDelay::print_instr(outputStream* out) const {
   _op->print_on(out);
