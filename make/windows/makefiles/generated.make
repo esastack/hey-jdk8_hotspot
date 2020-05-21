@@ -30,8 +30,9 @@
 JvmtiOutDir=jvmtifiles
 !include $(WorkSpace)/make/windows/makefiles/jvmti.make
 
-# Pick up rules for building trace -> jfr
+# Pick up rules for building jfr
 !include $(WorkSpace)/make/windows/makefiles/jfr.make
+JfrOutDir=jfrfiles
 
 # Pick up rules for building SA
 !include $(WorkSpace)/make/windows/makefiles/sa.make
@@ -39,9 +40,9 @@ JvmtiOutDir=jvmtifiles
 AdlcOutDir=adfiles
 
 !if ("$(Variant)" == "compiler2") || ("$(Variant)" == "tiered")
-default:: $(AdlcOutDir)/ad_$(Platform_arch_model).cpp $(AdlcOutDir)/dfa_$(Platform_arch_model).cpp $(JvmtiGeneratedFiles) $(TraceGeneratedFiles) buildobjfiles
+default:: $(AdlcOutDir)/ad_$(Platform_arch_model).cpp $(AdlcOutDir)/dfa_$(Platform_arch_model).cpp $(JvmtiGeneratedFiles) $(JfrGeneratedFiles) buildobjfiles
 !else
-default:: $(JvmtiGeneratedFiles) $(TraceGeneratedFiles) buildobjfiles
+default:: $(JvmtiGeneratedFiles) $(JfrGeneratedFiles) buildobjfiles
 !endif
 
 buildobjfiles:

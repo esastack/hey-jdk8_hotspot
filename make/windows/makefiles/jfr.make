@@ -23,31 +23,37 @@
 # questions.
 #
 
-include $(GAMMADIR)/make/windows/makefiles/rules.make
+!include $(WorkSpace)/make/windows/makefiles/rules.make
 
 .PHONY: all clean cleanall
 
-TOPDIR      = $(shell echo `pwd`)
-GENERATED   = $(TOPDIR)/../generated
+GENERATED   = ../generated
 
-JFR_TOOLS_SRCDIR := $(GAMMADIR)/make/src/classes
-JFR_TOOLS_OUTPUTDIR := $(GENERATED)/tools/jfr
+JFR_TOOLS_SRCDIR = $(WorkSpace)/make/src/classes
+JFR_TOOLS_OUTPUTDIR = $(GENERATED)/tools/jfr
 
-JFR_GEN_SOURCE := $(JFR_TOOLS_SRCDIR)/build/tools/jfr/GenerateJfrFiles.java
-JFR_GEN_CLASS := $(JFR_TOOLS_OUTPUTDIR)/build/tools/jfr/GenerateJfrFiles.class
+JFR_GEN_SOURCE = $(JFR_TOOLS_SRCDIR)/build/tools/jfr/GenerateJfrFiles.java
+JFR_GEN_CLASS = $(JFR_TOOLS_OUTPUTDIR)/build/tools/jfr/GenerateJfrFiles.class
 
-TOOL_JFR_GEN := $(RUN.JAVA) -cp $(JFR_TOOLS_OUTPUTDIR) build.tools.jfr.GenerateJfrFiles
+TOOL_JFR_GEN = $(RUN.JAVA) -cp $(JFR_TOOLS_OUTPUTDIR) build.tools.jfr.GenerateJfrFiles
 
-JFR_OUTPUTDIR := $(GENERATED)/jfrfiles
-JFR_SRCDIR := $(GAMMADIR)/src/share/vm/jfr/metadata
+JFR_OUTPUTDIR = $(GENERATED)/jfrfiles
+JFR_SRCDIR = $(GAMMADIR)/src/share/vm/jfr/metadata
 
 # Changing these will trigger a rebuild of generated jfr files.
-METADATA_XML := $(JFR_SRCDIR)/metadata.xml
-METADATA_XSD := $(JFR_SRCDIR)/metadata.xsd
+METADATA_XML = $(JFR_SRCDIR)/metadata.xml
+METADATA_XSD = $(JFR_SRCDIR)/metadata.xsd
 
-JFR_GENERATED_FILE := $(JFR_OUTPUTDIR)/jfrEventClasses.hpp
+JFR_GENERATED_FILE = $(JFR_OUTPUTDIR)/jfrEventClasses.hpp
 
-all: $(JFR_GENERATED_FILE)
+JfrGeneratedFiles = \
+  $(JFR_OUTPUTDIR)/jfrEventControl.hpp \
+  $(JFR_OUTPUTDIR)/jfrEventIds.hpp \
+  $(JFR_OUTPUTDIR)/jfrPeriodic.hpp \
+  $(JFR_OUTPUTDIR)/jfrTypes.hpp
+
+
+all: $(JfrGeneratedFiles)
 
 clean:
 	rm $(JFR_GEN_CLASS) $(JFR_OUTPUTDIR)
@@ -59,13 +65,13 @@ cleanall:
 $(JFR_GEN_CLASS): $(JFR_GEN_SOURCE)
 	@echo Generating $(@)
 	mkdir -p $(@D)
-	$(QUIETLY) $(REMOTE) $(COMPILE.JAVAC) -d $(JFR_TOOLS_OUTPUTDIR) $(JFR_GEN_SOURCE)
+	$(COMPILE_JAVAC) -d $(JFR_TOOLS_OUTPUTDIR) $(JFR_GEN_SOURCE)
 	test -f $(@)
 
 $(JFR_GENERATED_FILE): $(METADATA_XML) $(METADATA_XSD) $(JFR_GEN_CLASS)
 	@echo Generating $(@)
 	mkdir -p $(@D)
-	$(QUIETLY) $(REMOTE) $(TOOL_JFR_GEN) $(METADATA_XML) $(METADATA_XSD) $(@D)
+	$(TOOL_JFR_GEN) $(METADATA_XML) $(METADATA_XSD) $(@D)
 	test -f $(@)
 
-TARGETS += $(JFR_GENERATED_FILE)
+$(JfrGeneratedFiles): $(JFR_GENERATED_FILE)

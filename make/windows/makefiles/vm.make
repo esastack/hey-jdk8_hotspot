@@ -461,7 +461,7 @@ arguments.obj: $(WorkSpace)\src\share\vm\runtime\arguments.cpp
         $(CXX) $(CXX_FLAGS) $(CXX_USE_PCH) /c $<
 
 {$(COMMONSRC)\share\vm\jfr\writers}.cpp.obj::
-    $(CXX) $(CXX_FLAGS) $(CXX_USE_PCH) /c $<
+        $(CXX) $(CXX_FLAGS) $(CXX_USE_PCH) /c $<
 
 default::
 
