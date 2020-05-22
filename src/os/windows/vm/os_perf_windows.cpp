@@ -24,7 +24,6 @@
 
 #include "precompiled.hpp"
 #include "iphlp_interface.hpp"
-#include "logging/log.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "pdh_interface.hpp"
@@ -553,8 +552,8 @@ static const char* make_fully_qualified_counter_path(const char* object_name,
 }
 
 static void log_invalid_pdh_index(DWORD index) {
-  log_warning(os)("Unable to resolve PDH index: (%ld)", index);
-  log_warning(os)("Please check the registry if this performance object/counter is disabled");
+  tty->print_cr("Unable to resolve PDH index: (%ld)", index);
+  tty->print_cr("Please check the registry if this performance object/counter is disabled");
 }
 
 static bool is_valid_pdh_index(DWORD index) {
@@ -794,8 +793,8 @@ static double cpu_factor() {
 }
 
 static void log_error_message_on_no_PDH_artifact(const char* full_counter_name) {
-  log_warning(os)("Unable to register PDH query for \"%s\"", full_counter_name);
-  log_warning(os)("Please check the registry if this performance object/counter is disabled");
+  tty->print_cr("Unable to register PDH query for \"%s\"", full_counter_name);
+  tty->print_cr("Please check the registry if this performance object/counter is disabled");
 }
 
 static int initialize_cpu_query_counters(MultiCounterQueryP cpu_query, DWORD pdh_counter_idx) {

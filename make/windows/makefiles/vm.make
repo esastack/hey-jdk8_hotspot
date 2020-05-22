@@ -205,6 +205,12 @@ bytecodeInterpreter.obj: $(WorkSpace)\src\share\vm\interpreter\bytecodeInterpret
 bytecodeInterpreterWithChecks.obj: ..\generated\jvmtifiles\bytecodeInterpreterWithChecks.cpp
         $(CXX) $(CXX_FLAGS) $(CXX_DONT_USE_PCH) /c ..\generated\jvmtifiles\bytecodeInterpreterWithChecks.cpp
 
+iphlp_interface.obj: $(WorkSpace)\src\os\windows\vm\iphlp_interface.cpp
+        $(CXX) $(CXX_FLAGS) $(CXX_DONT_USE_PCH) /c $(WorkSpace)\src\os\windows\vm\iphlp_interface.cpp
+
+os_perf_windows.obj: $(WorkSpace)\src\os\windows\vm\os_perf_windows.cpp
+        $(CXX) $(CXX_FLAGS) $(CXX_DONT_USE_PCH) /c $(WorkSpace)\src\os\windows\vm\os_perf_windows.cpp
+
 #files compiled with version flags
 
 vm_version.obj: $(WorkSpace)\src\share\vm\runtime\vm_version.cpp

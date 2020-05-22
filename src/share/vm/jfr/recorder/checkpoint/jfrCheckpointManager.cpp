@@ -42,6 +42,12 @@
 #include "runtime/os.hpp"
 #include "runtime/safepoint.hpp"
 
+#ifdef _MSC_VER
+#pragma warning(push)
+// warning C4800: It can not convert int to bool type by default and cause
+//                error message instead of warning.
+#pragma warning(disable:4800)
+#endif
 typedef JfrCheckpointManager::Buffer* BufferPtr;
 
 static JfrCheckpointManager* _instance = NULL;
@@ -380,3 +386,7 @@ void JfrCheckpointManager::create_thread_checkpoint(JavaThread* jt) {
 void JfrCheckpointManager::write_thread_checkpoint(JavaThread* jt) {
   JfrTypeManager::write_thread_checkpoint(jt);
 }
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif

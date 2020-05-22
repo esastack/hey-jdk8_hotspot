@@ -1,12 +1,11 @@
 #
-# Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2018-2019, Azul Systems, Inc. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License version 2 only, as
-# published by the Free Software Foundation.  Oracle designates this
-# particular file as subject to the "Classpath" exception as provided
-# by Oracle in the LICENSE file that accompanied this code.
+# published by the Free Software Foundation.
 #
 # This code is distributed in the hope that it will be useful, but WITHOUT
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -21,57 +20,58 @@
 # Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
 # or visit www.oracle.com if you need additional information or have any
 # questions.
+#  
 #
+
+# This makefile (jfr.make) is included from the jfr.make in the
+# build directories.
+#
+# It knows how to build and run the tools to generate jfr.
 
 !include $(WorkSpace)/make/windows/makefiles/rules.make
 
-.PHONY: all clean cleanall
+# #########################################################################
+# Build tools needed for the Jfr source code generation
 
 GENERATED   = ../generated
 
 JFR_TOOLS_SRCDIR = $(WorkSpace)/make/src/classes
 JFR_TOOLS_OUTPUTDIR = $(GENERATED)/tools/jfr
 
-JFR_GEN_SOURCE = $(JFR_TOOLS_SRCDIR)/build/tools/jfr/GenerateJfrFiles.java
-JFR_GEN_CLASS = $(JFR_TOOLS_OUTPUTDIR)/build/tools/jfr/GenerateJfrFiles.class
-
-TOOL_JFR_GEN = $(RUN.JAVA) -cp $(JFR_TOOLS_OUTPUTDIR) build.tools.jfr.GenerateJfrFiles
-
 JFR_OUTPUTDIR = $(GENERATED)/jfrfiles
-JFR_SRCDIR = $(GAMMADIR)/src/share/vm/jfr/metadata
+JFR_SRCDIR = $(WorkSpace)/src/share/vm/jfr/metadata
 
-# Changing these will trigger a rebuild of generated jfr files.
 METADATA_XML = $(JFR_SRCDIR)/metadata.xml
 METADATA_XSD = $(JFR_SRCDIR)/metadata.xsd
 
-JFR_GENERATED_FILE = $(JFR_OUTPUTDIR)/jfrEventClasses.hpp
-
 JfrGeneratedFiles = \
-  $(JFR_OUTPUTDIR)/jfrEventControl.hpp \
-  $(JFR_OUTPUTDIR)/jfrEventIds.hpp \
-  $(JFR_OUTPUTDIR)/jfrPeriodic.hpp \
-  $(JFR_OUTPUTDIR)/jfrTypes.hpp
+	$(JFR_OUTPUTDIR)/jfrEventControl.hpp \
+	$(JFR_OUTPUTDIR)/jfrEventIds.hpp \
+	$(JFR_OUTPUTDIR)/jfrPeriodic.hpp \
+	$(JFR_OUTPUTDIR)/jfrTypes.hpp
 
+JfrGenSource = $(JFR_TOOLS_SRCDIR)/build/tools/jfr/GenerateJfrFiles.java
+JfrGenClass = $(JFR_TOOLS_OUTPUTDIR)/build/tools/jfr/GenerateJfrFiles.class
+
+.PHONY: all cleanall
+
+# #########################################################################
 
 all: $(JfrGeneratedFiles)
 
-clean:
-	rm $(JFR_GEN_CLASS) $(JFR_OUTPUTDIR)
-
-cleanall:
-	rm $(JFR_GEN_CLASS) $(JFR_OUTPUTDIR)
-
-
-$(JFR_GEN_CLASS): $(JFR_GEN_SOURCE)
-	@echo Generating $(@)
+$(JfrGenClass): $(JfrGenSource)
 	mkdir -p $(@D)
-	$(COMPILE_JAVAC) -d $(JFR_TOOLS_OUTPUTDIR) $(JFR_GEN_SOURCE)
-	test -f $(@)
+	$(COMPILE_JAVAC) -d $(JFR_TOOLS_OUTPUTDIR) $(JfrGenSource)
 
-$(JFR_GENERATED_FILE): $(METADATA_XML) $(METADATA_XSD) $(JFR_GEN_CLASS)
-	@echo Generating $(@)
+$(JFR_OUTPUTDIR)/jfrEventClasses.hpp: $(METADATA_XML) $(METADATA_XSD) $(JfrGenClass)
+	echo Generating $(@F)
 	mkdir -p $(@D)
-	$(TOOL_JFR_GEN) $(METADATA_XML) $(METADATA_XSD) $(@D)
-	test -f $(@)
+	$(RUN_JAVA) -cp $(JFR_TOOLS_OUTPUTDIR) build.tools.jfr.GenerateJfrFiles $(METADATA_XML) $(METADATA_XSD) $(JFR_OUTPUTDIR)
+	test -f $@
 
-$(JfrGeneratedFiles): $(JFR_GENERATED_FILE)
+$(JfrGeneratedFiles): $(JFR_OUTPUTDIR)/jfrEventClasses.hpp
+
+# #########################################################################
+
+cleanall :
+	rm $(JfrGenClass) $(JfrGeneratedFiles) $(JFR_OUTPUTDIR)/jfrEventClasses.hpp

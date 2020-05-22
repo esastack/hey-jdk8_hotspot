@@ -31,8 +31,8 @@ JvmtiOutDir=jvmtifiles
 !include $(WorkSpace)/make/windows/makefiles/jvmti.make
 
 # Pick up rules for building jfr
-!include $(WorkSpace)/make/windows/makefiles/jfr.make
 JfrOutDir=jfrfiles
+!include $(WorkSpace)/make/windows/makefiles/jfr.make
 
 # Pick up rules for building SA
 !include $(WorkSpace)/make/windows/makefiles/sa.make
