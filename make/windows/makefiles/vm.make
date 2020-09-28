@@ -161,18 +161,13 @@ VM_PATH=$(VM_PATH);$(WorkSpace)/src/share/vm/prims
 VM_PATH=$(VM_PATH);$(WorkSpace)/src/share/vm/prims/wbtestmethods
 VM_PATH=$(VM_PATH);$(WorkSpace)/src/share/vm/runtime
 VM_PATH=$(VM_PATH);$(WorkSpace)/src/share/vm/services
-VM_PATH=$(VM_PATH);$(WorkSpace)/src/share/vm/jfr
+VM_PATH=$(VM_PATH);$(WorkSpace)/src/share/vm/trace
 VM_PATH=$(VM_PATH);$(WorkSpace)/src/share/vm/utilities
 VM_PATH=$(VM_PATH);$(WorkSpace)/src/share/vm/libadt
 VM_PATH=$(VM_PATH);$(WorkSpace)/src/os/windows/vm
 VM_PATH=$(VM_PATH);$(WorkSpace)/src/os_cpu/windows_$(Platform_arch)/vm
 VM_PATH=$(VM_PATH);$(WorkSpace)/src/cpu/$(Platform_arch)/vm
 VM_PATH=$(VM_PATH);$(WorkSpace)/src/share/vm/opto
-
-!if exists($(ALTSRC)\share\vm\jfr)
-VM_PATH=$(VM_PATH);$(ALTSRC)/share/vm/jfr
-VM_PATH=$(VM_PATH);$(ALTSRC)/share/vm/jfr/buffers
-!endif
 
 VM_PATH={$(VM_PATH)}
 
@@ -277,7 +272,7 @@ arguments.obj: $(WorkSpace)\src\share\vm\runtime\arguments.cpp
 {$(COMMONSRC)\share\vm\services}.cpp.obj::
         $(CXX) $(CXX_FLAGS) $(CXX_USE_PCH) /c $<
 
-{$(COMMONSRC)\share\vm\jfr}.cpp.obj::
+{$(COMMONSRC)\share\vm\trace}.cpp.obj::
         $(CXX) $(CXX_FLAGS) $(CXX_USE_PCH) /c $<
 
 {$(COMMONSRC)\share\vm\utilities}.cpp.obj::
@@ -360,7 +355,7 @@ arguments.obj: $(WorkSpace)\src\share\vm\runtime\arguments.cpp
 {$(ALTSRC)\share\vm\services}.cpp.obj::
         $(CXX) $(CXX_FLAGS) $(CXX_USE_PCH) /c $<
 
-{$(ALTSRC)\share\vm\jfr}.cpp.obj::
+{$(ALTSRC)\share\vm\trace}.cpp.obj::
         $(CXX) $(CXX_FLAGS) $(CXX_USE_PCH) /c $<
 
 {$(ALTSRC)\share\vm\utilities}.cpp.obj::

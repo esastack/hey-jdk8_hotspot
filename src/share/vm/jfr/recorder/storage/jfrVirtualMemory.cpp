@@ -24,11 +24,11 @@
 
 #include "precompiled.hpp"
 #include "jfr/recorder/storage/jfrVirtualMemory.hpp"
-#include "jfr/utilities/align.hpp"
-#include "runtime/virtualspace.hpp"
 #include "runtime/orderAccess.hpp"
+#include "runtime/virtualspace.hpp"
 #include "runtime/os.hpp"
 #include "services/memTracker.hpp"
+#include "utilities/align.hpp"
 #include "utilities/globalDefinitions.hpp"
 
 /*

@@ -132,6 +132,13 @@ static bool setup_event_writer_offsets(TRAPS) {
   return true;
 }
 
+bool JfrJavaEventWriter::has_required_classes(TRAPS) {
+  const char class_name[] = "jdk/jfr/internal/EventWriter";
+  Symbol* const k_sym = SymbolTable::lookup(class_name, sizeof class_name - 1, CHECK_false);
+  Klass* klass = SystemDictionary::resolve_or_null(k_sym, CHECK_false);
+  return (klass != NULL);
+}
+
 bool JfrJavaEventWriter::initialize() {
   static bool initialized = false;
   if (!initialized) {

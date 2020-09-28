@@ -64,8 +64,6 @@
 #include "utilities/growableArray.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/ostream.hpp"
-#include "jfr/jfr.hpp"
-#include "jfr/jfrEvents.hpp"
 
 ClassLoaderData * ClassLoaderData::_the_null_class_loader_data = NULL;
 
@@ -750,27 +748,6 @@ bool ClassLoaderDataGraph::contains_loader_data(ClassLoaderData* loader_data) {
 }
 #endif // PRODUCT
 
-static Ticks class_unload_time;
-static void post_class_unload_event(Klass* const k) {
-  assert(k != NULL, "invariant");
-  EventClassUnload event(UNTIMED);
-  event.set_endtime(class_unload_time);
-  event.set_unloadedClass(k);
-  event.set_definingClassLoader(k->class_loader_data());
-  event.commit();
-}
-
-static void post_class_unload_events() {
-  assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint!");
-  if (Jfr::is_enabled()) {
-    if (EventClassUnload::is_enabled()) {
-      class_unload_time = Ticks::now();
-      ClassLoaderDataGraph::classes_unloading_do(&post_class_unload_event);
-    }
-    Jfr::on_unloading_classes();
-  }
-}
-
 // Move class loader data from main list to the unloaded list for unloading
 // and deallocation later.
 bool ClassLoaderDataGraph::do_unloading(BoolObjectClosure* is_alive_closure, bool clean_alive) {
@@ -808,10 +785,6 @@ bool ClassLoaderDataGraph::do_unloading(BoolObjectClosure* is_alive_closure, boo
   if (clean_alive) {
     // Clean previous versions and the deallocate list.
     ClassLoaderDataGraph::clean_metaspaces();
-  }
-
-  if (seen_dead_loader) {
-    JFR_ONLY(post_class_unload_events();)
   }
 
   return seen_dead_loader;

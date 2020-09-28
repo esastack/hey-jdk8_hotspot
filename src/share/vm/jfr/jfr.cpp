@@ -63,21 +63,22 @@ void Jfr::on_unloading_classes() {
   }
 }
 
-void Jfr::on_thread_start(JavaThread* t) {
+void Jfr::on_thread_start(Thread* t) {
   JfrThreadLocal::on_start(t);
 }
 
-void Jfr::on_thread_exit(JavaThread* thread) {
-  JfrThreadLocal::on_exit(thread);
+void Jfr::on_thread_exit(Thread* t) {
+  JfrThreadLocal::on_exit(t);
 }
 
-void Jfr::on_thread_destruct(Thread* thread) {
-  if (JfrRecorder::is_created()) {
-    JfrThreadLocal::on_destruct(thread);
+void Jfr::on_java_thread_dismantle(JavaThread* jt) {
+  if (JfrRecorder::is_recording()) {
+    JfrCheckpointManager::write_thread_checkpoint(jt);
   }
 }
 
 void Jfr::on_vm_shutdown(bool exception_handler) {
+  JfrRecorder::set_is_shutting_down();
   if (JfrRecorder::is_recording()) {
     JfrEmergencyDump::on_vm_shutdown(exception_handler);
   }

@@ -146,7 +146,7 @@ void ObjectSampleDescription::write_object_details() {
 
 void ObjectSampleDescription::write_class_name() {
   assert(_object->is_a(SystemDictionary::Class_klass()), "invariant");
-  const Klass* const k = java_lang_Class::as_Klass(_object);
+  Klass* const k = java_lang_Class::as_Klass(_object);
   if (k == NULL) {
     // might represent a primitive
     const Klass* const ak = java_lang_Class::array_klass(_object);
@@ -175,14 +175,10 @@ void ObjectSampleDescription::write_class_name() {
 
 void ObjectSampleDescription::write_thread_group_name() {
   assert(_object->is_a(SystemDictionary::ThreadGroup_klass()), "invariant");
-  const char* tg_name = NULL;
-  typeArrayOop name = java_lang_ThreadGroup::name(_object);
-  if (name != NULL) {
-    tg_name = UNICODE::as_utf8((jchar*) name->base(T_CHAR), name->length());
-  }
+  typeArrayOop tg_name = java_lang_ThreadGroup::name(_object);
   if (tg_name != NULL) {
     write_text("Thread Group: ");
-    write_text(tg_name);
+    write_text(UNICODE::as_utf8((jchar*) tg_name->base(T_CHAR), tg_name->length()));
   }
 }
 

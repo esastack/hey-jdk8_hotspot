@@ -35,19 +35,12 @@
 #include "jfr/recorder/repository/jfrChunkWriter.hpp"
 #include "jfr/utilities/jfrBigEndian.hpp"
 #include "jfr/utilities/jfrTypes.hpp"
-#include "jfr/utilities/jfrLog.hpp"
 #include "memory/resourceArea.hpp"
 #include "runtime/mutexLocker.hpp"
-#include "runtime/orderAccess.hpp"
+#include "runtime/orderAccess.inline.hpp"
 #include "runtime/os.hpp"
 #include "runtime/safepoint.hpp"
 
-#ifdef _MSC_VER
-#pragma warning(push)
-// warning C4800: It can not convert int to bool type by default and cause
-//                error message instead of warning.
-#pragma warning(disable:4800)
-#endif
 typedef JfrCheckpointManager::Buffer* BufferPtr;
 
 static JfrCheckpointManager* _instance = NULL;
@@ -74,7 +67,7 @@ JfrCheckpointManager::JfrCheckpointManager(JfrChunkWriter& cw) :
   _lock(NULL),
   _service_thread(NULL),
   _chunkwriter(cw),
-  _checkpoint_epoch_state(JfrTraceIdEpoch::epoch()) {}
+  _checkpoint_epoch_state(JfrTraceIdEpoch::current()) {}
 
 JfrCheckpointManager::~JfrCheckpointManager() {
   if (_free_list_mspace != NULL) {
@@ -121,13 +114,13 @@ bool JfrCheckpointManager::initialize() {
 }
 
 bool JfrCheckpointManager::use_epoch_transition_mspace(const Thread* thread) const {
-  return _service_thread != thread && (bool)OrderAccess::load_acquire((int*)&_checkpoint_epoch_state) != JfrTraceIdEpoch::epoch();
+  return _service_thread != thread && OrderAccess::load_acquire((u1*)&_checkpoint_epoch_state) != JfrTraceIdEpoch::current();
 }
 
 void JfrCheckpointManager::synchronize_epoch() {
-  assert(_checkpoint_epoch_state != JfrTraceIdEpoch::epoch(), "invariant");
+  assert(_checkpoint_epoch_state != JfrTraceIdEpoch::current(), "invariant");
   OrderAccess::storestore();
-  _checkpoint_epoch_state = JfrTraceIdEpoch::epoch();
+  _checkpoint_epoch_state = JfrTraceIdEpoch::current();
 }
 
 void JfrCheckpointManager::shift_epoch() {
@@ -386,7 +379,3 @@ void JfrCheckpointManager::create_thread_checkpoint(JavaThread* jt) {
 void JfrCheckpointManager::write_thread_checkpoint(JavaThread* jt) {
   JfrTypeManager::write_thread_checkpoint(jt);
 }
-
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif

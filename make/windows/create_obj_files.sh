@@ -72,11 +72,10 @@ for sd in \
 done
 
 BASE_PATHS="${BASE_PATHS} ${GENERATED}/jvmtifiles ${GENERATED}/jfrfiles"
-BASE_PATHS="${BASE_PATHS} `$FIND ${COMMONSRC}/share/vm/jfr -type d`"
 
-#if [ -d "${ALTSRC}/share/vm/jfr/buffers" ]; then
-#  BASE_PATHS="${BASE_PATHS} ${ALTSRC}/share/vm/jfr/buffers"
-#fi
+if [ "$ENABLE_JFR" = "true" ]; then
+BASE_PATHS="${BASE_PATHS} `$FIND ${COMMONSRC}/share/vm/jfr -type d`"
+fi
 
 BASE_PATHS="${BASE_PATHS} ${COMMONSRC}/share/vm/prims/wbtestmethods"
 

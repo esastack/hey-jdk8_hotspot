@@ -40,9 +40,6 @@
 #include "gc_implementation/shared/isGCActiveMark.hpp"
 #include "gc_implementation/shared/spaceDecorator.hpp"
 #include "gc_interface/gcCause.hpp"
-#if INCLUDE_JFR
-#include "jfr/jfr.hpp"
-#endif
 #include "memory/collectorPolicy.hpp"
 #include "memory/gcLocker.inline.hpp"
 #include "memory/referencePolicy.hpp"

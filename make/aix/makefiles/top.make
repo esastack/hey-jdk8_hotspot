@@ -1,5 +1,5 @@
 #
-# Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -94,8 +94,8 @@ ad_stuff: $(Cached_plat) $(adjust-mflags)
 jvmti_stuff: $(Cached_plat) $(adjust-mflags)
 	@$(MAKE) -f jvmti.make $(MFLAGS-adjusted)
 
-# generate jfr files
-jfr_stuff: jvmti_stuff $(Cached_plat) $(adjust-mflags)
+# generate JFR files
+jfr_stuff: $(Cached_plat) $(adjust-mflags)
 	@$(MAKE) -f jfr.make $(MFLAGS-adjusted)
 
 # generate SA jar files and native header

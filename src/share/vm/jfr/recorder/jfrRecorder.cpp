@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,33 +40,26 @@
 #include "jfr/recorder/stringpool/jfrStringPool.hpp"
 #include "jfr/utilities/jfrTime.hpp"
 #include "jfr/writers/jfrJavaEventWriter.hpp"
-#include "jfr/utilities/jfrLog.hpp"
 #include "memory/resourceArea.hpp"
 #include "runtime/handles.inline.hpp"
-#include "runtime/globals.hpp"
+#include "runtime/globals_extension.hpp"
 #include "utilities/growableArray.hpp"
 
-static bool is_disabled_on_command_line() {
-  static const size_t length = strlen("FlightRecorder");
-  static Flag* const flight_recorder_flag = Flag::find_flag("FlightRecorder", length);
-  assert(flight_recorder_flag != NULL, "invariant");
-  return flight_recorder_flag->is_command_line() ? !FlightRecorder : false;
-}
+bool JfrRecorder::_shutting_down = false;
 
 bool JfrRecorder::is_disabled() {
-  return is_disabled_on_command_line();
-}
-
-static bool set_flight_recorder_flag(bool flag_value) {
-  CommandLineFlags::boolAtPut((char*)"FlightRecorder", &flag_value, Flag::MANAGEMENT);
-  return FlightRecorder;
+  // True if -XX:-FlightRecorder has been explicitly set on the
+  // command line
+  return FLAG_IS_CMDLINE(FlightRecorder) ? !FlightRecorder : false;
 }
 
 static bool _enabled = false;
 
 static bool enable() {
   assert(!_enabled, "invariant");
-  _enabled = set_flight_recorder_flag(true);
+  FLAG_SET_MGMT(bool, FlightRecorder, true);
+  _enabled = FlightRecorder;
+  assert(_enabled, "invariant");
   return _enabled;
 }
 
@@ -139,14 +132,14 @@ static bool validate_recording_options(TRAPS) {
 
 static bool launch_recording(JfrStartFlightRecordingDCmd* dcmd_recording, TRAPS) {
   assert(dcmd_recording != NULL, "invariant");
-  log_trace(jfr, system)("Starting a recording");
+  if (LogJFR && Verbose) tty->print_cr("Starting a recording");
   dcmd_recording->execute(DCmd_Source_Internal, THREAD);
   if (HAS_PENDING_EXCEPTION) {
-    log_debug(jfr, system)("Exception while starting a recording");
+    if (LogJFR) tty->print_cr("Exception while starting a recording");
     CLEAR_PENDING_EXCEPTION;
     return false;
   }
-  log_trace(jfr, system)("Finished starting a recording");
+  if (LogJFR && Verbose) tty->print_cr("Finished starting a recording");
   return true;
 }
 
@@ -181,24 +174,29 @@ bool JfrRecorder::on_vm_start() {
     return true;
   }
   Thread* const thread = Thread::current();
+  if (!JfrJavaEventWriter::has_required_classes(thread)) {
+    // assume it is compact profile of jfr.jar is missed for some reasons
+    // skip further initialization.
+    return true;
+  }
   if (!JfrOptionSet::initialize(thread)) {
     return false;
   }
   if (!register_jfr_dcmds()) {
     return false;
   }
-  
+
   if (!validate_recording_options(thread)) {
     return false;
   }
-  
-  // Don't start chunkwriter here.
   if (!JfrOptionSet::configure(thread)) {
     return false;
   }
+
   if (!is_enabled()) {
     return true;
   }
+
   return launch_recordings(thread);
 }
 
@@ -391,7 +389,7 @@ void JfrRecorder::on_recorder_thread_exit() {
   //
   // destroy_components();
   //
-  log_debug(jfr, system)("Recorder thread STOPPED");
+  if (LogJFR) tty->print_cr("Recorder thread STOPPED");
 }
 
 void JfrRecorder::start_recording() {

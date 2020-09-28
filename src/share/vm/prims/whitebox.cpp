@@ -40,6 +40,7 @@
 #include "runtime/interfaceSupport.hpp"
 #include "runtime/os.hpp"
 #include "utilities/array.hpp"
+#include "utilities/align.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/exceptions.hpp"
@@ -61,7 +62,6 @@
 #include "compiler/compileBroker.hpp"
 #include "jvmtifiles/jvmtiEnv.hpp"
 #include "runtime/compilationPolicy.hpp"
-#include "jfr/utilities/align.hpp"
 
 PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
@@ -80,16 +80,11 @@ WB_END
 WB_ENTRY(jint, WB_GetVMPageSize(JNIEnv* env, jobject o))
   return os::vm_page_size();
 WB_END
-  
+
 WB_ENTRY(jlong, WB_GetVMLargePageSize(JNIEnv* env, jobject o))
   return os::large_page_size();
 WB_END
 
-WB_ENTRY(jlong, WB_GetHeapAlignment(JNIEnv* env, jobject o))
-  size_t alignment = Universe::heap()->collector_policy()->heap_alignment();
-  return (jlong)alignment;
-WB_END
-    
 class WBIsKlassAliveClosure : public KlassClosure {
     Symbol* _name;
     bool _found;
@@ -143,10 +138,6 @@ WB_ENTRY(jintArray, WB_GetLookupCacheMatches(JNIEnv* env, jobject o, jobject loa
   return result;
 WB_END
 
-WB_ENTRY(jboolean, WB_IsSharingEnabled(JNIEnv* env, jobject wb))
-  return UseSharedSpaces;
-WB_END
-  
 WB_ENTRY(void, WB_AddToBootstrapClassLoaderSearch(JNIEnv* env, jobject o, jstring segment)) {
 #if INCLUDE_JVMTI
   ResourceMark rm;
@@ -578,23 +569,55 @@ WB_ENTRY(jboolean, WB_TestSetForceInlineMethod(JNIEnv* env, jobject o, jobject m
   return result;
 WB_END
 
+bool WhiteBox::compile_method(Method* method, int comp_level, int bci, Thread* THREAD) {
+  // Screen for unavailable/bad comp level or null method
+  AbstractCompiler* comp = CompileBroker::compiler(comp_level);
+  if (method == NULL) {
+    tty->print_cr("WB error: request to compile NULL method");
+    return false;
+  }
+  if (comp_level > MIN2((CompLevel) TieredStopAtLevel, CompLevel_highest_tier)) {
+    tty->print_cr("WB error: invalid compilation level %d", comp_level);
+    return false;
+  }
+  if (comp == NULL) {
+    tty->print_cr("WB error: no compiler for requested compilation level %d", comp_level);
+    return false;
+  }
+
+  methodHandle mh(THREAD, method);
+
+  // Compile method and check result
+  nmethod* nm = CompileBroker::compile_method(mh, bci, comp_level, mh, mh->invocation_count(), "Whitebox", THREAD);
+  MutexLocker mu(Compile_lock);
+  bool is_queued = mh->queued_for_compilation();
+  if (is_queued || nm != NULL) {
+    return true;
+  }
+  tty->print("WB error: failed to compile at level %d method ", comp_level);
+  mh->print_short_name(tty);
+  tty->cr();
+  if (is_queued) {
+    tty->print_cr("WB error: blocking compilation is still in queue!");
+  }
+  return false;
+}
+
 WB_ENTRY(jboolean, WB_EnqueueMethodForCompilation(JNIEnv* env, jobject o, jobject method, jint comp_level, jint bci))
   jmethodID jmid = reflected_method_to_jmid(thread, env, method);
   CHECK_JNI_EXCEPTION_(env, JNI_FALSE);
-  methodHandle mh(THREAD, Method::checked_resolve_jmethod_id(jmid));
-  nmethod* nm = CompileBroker::compile_method(mh, bci, comp_level, mh, mh->invocation_count(), "WhiteBox", THREAD);
-  MutexLockerEx mu(Compile_lock);
-  return (mh->queued_for_compilation() || nm != NULL);
+  return WhiteBox::compile_method(Method::checked_resolve_jmethod_id(jmid), comp_level, bci, THREAD);
 WB_END
 
 WB_ENTRY(jboolean, WB_EnqueueInitializerForCompilation(JNIEnv* env, jobject o, jclass klass, jint comp_level))
   InstanceKlass* ik = InstanceKlass::cast(java_lang_Class::as_Klass(JNIHandles::resolve(klass)));
-  methodHandle mh(THREAD, ik->class_initializer());
-  nmethod* nm = CompileBroker::compile_method(mh, InvocationEntryBci, comp_level, mh, mh->invocation_count(), "WhiteBox", THREAD);
-  MutexLockerEx mu(Compile_lock);
-  return (mh->queued_for_compilation() || nm != NULL);
+  Method* clinit = ik->class_initializer();
+  if (clinit == NULL) {
+    return false;
+  }
+  return WhiteBox::compile_method(clinit, comp_level, InvocationEntryBci, THREAD);
 WB_END
-    
+
 class VM_WhiteBoxOperation : public VM_Operation {
  public:
   VM_WhiteBoxOperation()                         { }
@@ -822,7 +845,6 @@ WB_ENTRY(void, WB_SetStringVMFlag(JNIEnv* env, jobject o, jstring name, jstring 
   }
 WB_END
 
-
 WB_ENTRY(jboolean, WB_IsInStringTable(JNIEnv* env, jobject o, jstring javaString))
   ResourceMark rm(THREAD);
   int len;
@@ -869,6 +891,47 @@ WB_ENTRY(jstring, WB_GetCPUFeatures(JNIEnv* env, jobject o))
   return features_string;
 WB_END
 
+int WhiteBox::get_blob_type(const CodeBlob* code) {
+  guarantee(WhiteBoxAPI, "internal testing API :: WhiteBox has to be enabled");
+  return CodeBlobType::All;;
+}
+
+struct CodeBlobStub {
+  CodeBlobStub(const CodeBlob* blob) :
+      name(os::strdup(blob->name())),
+      size(blob->size()),
+      blob_type(WhiteBox::get_blob_type(blob)),
+      address((jlong) blob) { }
+  ~CodeBlobStub() { os::free((void*) name); }
+  const char* const name;
+  const jint        size;
+  const jint        blob_type;
+  const jlong       address;
+};
+
+static jobjectArray codeBlob2objectArray(JavaThread* thread, JNIEnv* env, CodeBlobStub* cb) {
+  jclass clazz = env->FindClass(vmSymbols::java_lang_Object()->as_C_string());
+  CHECK_JNI_EXCEPTION_(env, NULL);
+  jobjectArray result = env->NewObjectArray(4, clazz, NULL);
+
+  jstring name = env->NewStringUTF(cb->name);
+  CHECK_JNI_EXCEPTION_(env, NULL);
+  env->SetObjectArrayElement(result, 0, name);
+
+  jobject obj = integerBox(thread, env, cb->size);
+  CHECK_JNI_EXCEPTION_(env, NULL);
+  env->SetObjectArrayElement(result, 1, obj);
+
+  obj = integerBox(thread, env, cb->blob_type);
+  CHECK_JNI_EXCEPTION_(env, NULL);
+  env->SetObjectArrayElement(result, 2, obj);
+
+  obj = longBox(thread, env, cb->address);
+  CHECK_JNI_EXCEPTION_(env, NULL);
+  env->SetObjectArrayElement(result, 3, obj);
+
+  return result;
+}
 
 WB_ENTRY(jobjectArray, WB_GetNMethod(JNIEnv* env, jobject o, jobject method, jboolean is_osr))
   ResourceMark rm(THREAD);
@@ -905,7 +968,7 @@ WB_ENTRY(jobjectArray, WB_GetNMethod(JNIEnv* env, jobject o, jobject method, jbo
 
   return result;
 WB_END
-    
+
 CodeBlob* WhiteBox::allocate_code_blob(int size, int blob_type) {
   guarantee(WhiteBoxAPI, "internal testing API :: WhiteBox has to be enabled");
   BufferBlob* blob;
@@ -938,53 +1001,7 @@ WB_ENTRY(void, WB_FreeCodeBlob(JNIEnv* env, jobject o, jlong addr))
   BufferBlob::free((BufferBlob*) addr);
 WB_END
 
-int WhiteBox::array_bytes_to_length(size_t bytes) {
-  return Array<u1>::bytes_to_length(bytes);
-}
-
-int WhiteBox::get_blob_type(const CodeBlob* code) { 
-  guarantee(WhiteBoxAPI, "internal testing API :: WhiteBox has to be enabled"); 
-  return CodeBlobType::All;; 
-} 
-
-struct CodeBlobStub {
-  CodeBlobStub(const CodeBlob* blob) :
-      name(os::strdup(blob->name())),
-      size(blob->size()),
-      blob_type(WhiteBox::get_blob_type(blob)),
-      address((jlong) blob) { }
-  ~CodeBlobStub() { os::free((void*) name); }
-  const char* const name; 
-  const jint        size; 
-  const jint        blob_type; 
-  const jlong       address; 
-};
-
-static jobjectArray codeBlob2objectArray(JavaThread* thread, JNIEnv* env, CodeBlobStub* cb) {
-  jclass clazz = env->FindClass(vmSymbols::java_lang_Object()->as_C_string());
-  CHECK_JNI_EXCEPTION_(env, NULL);
-  jobjectArray result = env->NewObjectArray(4, clazz, NULL);
-
-  jstring name = env->NewStringUTF(cb->name);
-  CHECK_JNI_EXCEPTION_(env, NULL);
-  env->SetObjectArrayElement(result, 0, name);
-
-  jobject obj = integerBox(thread, env, cb->size);
-  CHECK_JNI_EXCEPTION_(env, NULL);
-  env->SetObjectArrayElement(result, 1, obj);
-
-  obj = integerBox(thread, env, cb->blob_type);
-  CHECK_JNI_EXCEPTION_(env, NULL);
-  env->SetObjectArrayElement(result, 2, obj);
-
-  obj = longBox(thread, env, cb->address);
-  CHECK_JNI_EXCEPTION_(env, NULL);
-  env->SetObjectArrayElement(result, 3, obj);
-
-  return result;
-}
-
-WB_ENTRY(jobjectArray, WB_GetCodeBlob(JNIEnv* env, jobject o, jlong addr))                                                             
+WB_ENTRY(jobjectArray, WB_GetCodeBlob(JNIEnv* env, jobject o, jlong addr))
   if (addr == 0) {
     THROW_MSG_NULL(vmSymbols::java_lang_NullPointerException(),
       "WB_GetCodeBlob: addr is null");
@@ -993,6 +1010,10 @@ WB_ENTRY(jobjectArray, WB_GetCodeBlob(JNIEnv* env, jobject o, jlong addr))
   CodeBlobStub stub((CodeBlob*) addr);
   return codeBlob2objectArray(thread, env, &stub);
 WB_END
+
+int WhiteBox::array_bytes_to_length(size_t bytes) {
+  return Array<u1>::bytes_to_length(bytes);
+}
 
 WB_ENTRY(jlong, WB_AllocateMetaspace(JNIEnv* env, jobject wb, jobject class_loader, jlong size))
   if (size < 0) {
@@ -1058,6 +1079,11 @@ WB_END
 WB_ENTRY(void, WB_ForceSafepoint(JNIEnv* env, jobject wb))
   VM_ForceSafepoint force_safepoint_op;
   VMThread::execute(&force_safepoint_op);
+WB_END
+
+WB_ENTRY(jlong, WB_GetHeapAlignment(JNIEnv* env, jobject o))
+    size_t alignment = Universe::heap()->collector_policy()->heap_alignment();
+    return (jlong)alignment;
 WB_END
 
 //Some convenience methods to deal with objects from java
@@ -1174,14 +1200,13 @@ static JNINativeMethod methods[] = {
   {CC"getHeapOopSize",     CC"()I",                   (void*)&WB_GetHeapOopSize    },
   {CC"getVMPageSize",      CC"()I",                   (void*)&WB_GetVMPageSize     },
   {CC"getVMLargePageSize", CC"()J",                   (void*)&WB_GetVMLargePageSize},
-  {CC"getHeapAlignment",                 CC"()J",                   (void*)&WB_GetHeapAlignment},
+  {CC"getHeapAlignment",   CC"()J",                   (void*)&WB_GetHeapAlignment  },
   {CC"isClassAlive0",      CC"(Ljava/lang/String;)Z", (void*)&WB_IsClassAlive      },
   {CC"classKnownToNotExist",
                            CC"(Ljava/lang/ClassLoader;Ljava/lang/String;)Z",(void*)&WB_ClassKnownToNotExist},
   {CC"getLookupCacheURLs", CC"(Ljava/lang/ClassLoader;)[Ljava/net/URL;",    (void*)&WB_GetLookupCacheURLs},
   {CC"getLookupCacheMatches", CC"(Ljava/lang/ClassLoader;Ljava/lang/String;)[I",
                                                       (void*)&WB_GetLookupCacheMatches},
-  {CC"isSharingEnabled",   CC"()Z",                   (void*)&WB_IsSharingEnabled},
   {CC"parseCommandLine",
       CC"(Ljava/lang/String;[Lsun/hotspot/parser/DiagnosticCommand;)[Ljava/lang/Object;",
       (void*) &WB_ParseCommandLine
@@ -1272,6 +1297,9 @@ static JNINativeMethod methods[] = {
   {CC"fullGC",   CC"()V",                             (void*)&WB_FullGC },
   {CC"youngGC",  CC"()V",                             (void*)&WB_YoungGC },
   {CC"readReservedMemory", CC"()V",                   (void*)&WB_ReadReservedMemory },
+  {CC"allocateCodeBlob",   CC"(II)J",                 (void*)&WB_AllocateCodeBlob   },
+  {CC"freeCodeBlob",       CC"(J)V",                  (void*)&WB_FreeCodeBlob       },
+  {CC"getCodeBlob",        CC"(J)[Ljava/lang/Object;",(void*)&WB_GetCodeBlob        },
   {CC"allocateMetaspace",
      CC"(Ljava/lang/ClassLoader;J)J",                 (void*)&WB_AllocateMetaspace },
   {CC"freeMetaspace",
@@ -1287,9 +1315,6 @@ static JNINativeMethod methods[] = {
                                                       (void*)&WB_CheckLibSpecifiesNoexecstack},
   {CC"isContainerized",           CC"()Z",            (void*)&WB_IsContainerized },
   {CC"printOsInfo",               CC"()V",            (void*)&WB_PrintOsInfo },
-  {CC"allocateCodeBlob",   CC"(II)J",                 (void*)&WB_AllocateCodeBlob },
-  {CC"freeCodeBlob",       CC"(J)V",                  (void*)&WB_FreeCodeBlob },
-  {CC"getCodeBlob",        CC"(J)[Ljava/lang/Object;",(void*)&WB_GetCodeBlob },
 };
 
 #undef CC

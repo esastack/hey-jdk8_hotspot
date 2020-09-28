@@ -44,6 +44,9 @@
 #include "utilities/macros.hpp"
 #include "utilities/stringUtils.hpp"
 #include "utilities/taskqueue.hpp"
+#if INCLUDE_JFR
+#include "jfr/jfr.hpp"
+#endif
 #ifdef TARGET_OS_FAMILY_linux
 # include "os_linux.inline.hpp"
 #endif
@@ -64,9 +67,6 @@
 #include "gc_implementation/g1/g1CollectedHeap.inline.hpp"
 #include "gc_implementation/parallelScavenge/parallelScavengeHeap.hpp"
 #endif // INCLUDE_ALL_GCS
-#if INCLUDE_JFR
-#include "jfr/jfr.hpp"
-#endif
 
 // Note: This is a special bug reporting site for the JVM
 #ifdef VENDOR_URL_VM_BUG
@@ -3417,7 +3417,6 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args,
           "ManagementServer is not supported in this VM.\n");
         return JNI_ERR;
 #endif // INCLUDE_MANAGEMENT
-
 #if INCLUDE_JFR
     } else if (match_jfr_option(&option)) {
       return JNI_EINVAL;
@@ -3477,8 +3476,7 @@ void Arguments::fix_appclasspath() {
       src ++;
     }
 
-    char* copy = AllocateHeap(strlen(src) + 1, mtInternal);
-    strncpy(copy, src, strlen(src) + 1);
+    char* copy = os::strdup(src, mtInternal);
 
     // trim all trailing empty paths
     for (char* tail = copy + strlen(copy) - 1; tail >= copy && *tail == separator; tail--) {
@@ -3857,18 +3855,14 @@ static char* get_shared_archive_path() {
     if (end != NULL) *end = '\0';
     size_t jvm_path_len = strlen(jvm_path);
     size_t file_sep_len = strlen(os::file_separator());
-    shared_archive_path = NEW_C_HEAP_ARRAY(char, jvm_path_len +
-        file_sep_len + 20, mtInternal);
+    const size_t len = jvm_path_len + file_sep_len + 20;
+    shared_archive_path = NEW_C_HEAP_ARRAY(char, len, mtInternal);
     if (shared_archive_path != NULL) {
-      strncpy(shared_archive_path, jvm_path, jvm_path_len + 1);
-      strncat(shared_archive_path, os::file_separator(), file_sep_len);
-      strncat(shared_archive_path, "classes.jsa", 11);
+      jio_snprintf(shared_archive_path, len, "%s%sclasses.jsa",
+        jvm_path, os::file_separator());
     }
   } else {
-    shared_archive_path = NEW_C_HEAP_ARRAY(char, strlen(SharedArchiveFile) + 1, mtInternal);
-    if (shared_archive_path != NULL) {
-      strncpy(shared_archive_path, SharedArchiveFile, strlen(SharedArchiveFile) + 1);
-    }
+    shared_archive_path = os::strdup(SharedArchiveFile, mtInternal);
   }
   return shared_archive_path;
 }

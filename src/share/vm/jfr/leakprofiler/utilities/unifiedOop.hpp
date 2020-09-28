@@ -48,8 +48,7 @@ class UnifiedOop : public AllStatic {
     assert(ref != NULL, "invariant");
     return is_narrow(ref) ?
       oopDesc::load_decode_heap_oop((narrowOop*)decode(ref)) :
-      oopDesc::load_heap_oop(const_cast<oop*>(ref));
-
+      oopDesc::load_decode_heap_oop(const_cast<oop*>(ref));
   }
 };
 

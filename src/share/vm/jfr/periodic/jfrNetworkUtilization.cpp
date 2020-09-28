@@ -23,7 +23,6 @@
  */
 
 #include "precompiled.hpp"
-#include "jfr/utilities/jfrLog.hpp"
 #include "jfr/jfrEvents.hpp"
 #include "jfr/metadata/jfrSerializer.hpp"
 #include "jfr/periodic/jfrNetworkUtilization.hpp"
@@ -33,8 +32,6 @@
 #include "runtime/os_perf.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/growableArray.hpp"
-#include "memory/allocation.hpp"
-
 
 struct InterfaceEntry {
   char* name;
@@ -102,7 +99,7 @@ static InterfaceEntry& get_entry(const NetworkInterface* iface) {
 
 // If current counters are less than previous we assume the interface has been reset
 // If no bytes have been either sent or received, we'll also skip the event
-static uint64_t rate_per_second(uint64_t current, uint64_t old, JfrTickspan& interval) {
+static uint64_t rate_per_second(uint64_t current, uint64_t old, const JfrTickspan& interval) {
   assert(interval.value() > 0, "invariant");
   if (current <= old) {
     return 0;
@@ -113,7 +110,7 @@ static uint64_t rate_per_second(uint64_t current, uint64_t old, JfrTickspan& int
 static bool get_interfaces(NetworkInterface** network_interfaces) {
   const int ret_val = JfrOSInterface::network_utilization(network_interfaces);
   if (ret_val == OS_ERR) {
-    log_debug(jfr, system)("Unable to generate network utilization events");
+    if (LogJFR) tty->print_cr("Unable to generate network utilization events");
     return false;
   }
   return ret_val != FUNCTIONALITY_NOT_IMPLEMENTED;
@@ -158,10 +155,10 @@ void JfrNetworkUtilization::send_events() {
   if (!get_interfaces(&network_interfaces)) {
     return;
   }
-  log_trace(jfr, event)("Reporting network utilization");
+  if (LogJFR && Verbose) tty->print_cr("Reporting network utilization");
   static JfrTicks last_sample_instant;
   const JfrTicks cur_time = JfrTicks::now();
-  JfrTickspan interval = last_sample_instant.value() == 0 ? cur_time - cur_time : cur_time - last_sample_instant;
+  const JfrTickspan interval = last_sample_instant == 0 ? cur_time - cur_time : cur_time - last_sample_instant;
   last_sample_instant = cur_time;
   for (NetworkInterface *cur = network_interfaces; cur != NULL; cur = cur->next()) {
     InterfaceEntry& entry = get_entry(cur);

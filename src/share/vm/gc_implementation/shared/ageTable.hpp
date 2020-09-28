@@ -25,9 +25,9 @@
 #ifndef SHARE_VM_GC_IMPLEMENTATION_SHARED_AGETABLE_HPP
 #define SHARE_VM_GC_IMPLEMENTATION_SHARED_AGETABLE_HPP
 
-#include "gc_implementation/shared/gcTrace.hpp"
 #include "oops/markOop.hpp"
 #include "oops/oop.hpp"
+#include "gc_implementation/shared/gcTrace.hpp"
 #include "runtime/perfData.hpp"
 
 /* Copyright (c) 1992-2009 Oracle and/or its affiliates, and Stanford University.

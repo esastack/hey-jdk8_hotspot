@@ -38,6 +38,8 @@
 #include "compiler/compileBroker.hpp"
 #include "interpreter/bytecodeStream.hpp"
 #include "interpreter/interpreter.hpp"
+#include "jfr/jfrEvents.hpp"
+#include "jfr/jni/jfrUpcalls.hpp"
 #include "memory/filemap.hpp"
 #include "memory/gcLocker.hpp"
 #include "memory/oopFactory.hpp"
@@ -64,7 +66,6 @@
 #include "services/threadService.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/ticks.hpp"
-#include "jfr/jfrEvents.hpp"
 
 Dictionary*            SystemDictionary::_dictionary          = NULL;
 PlaceholderTable*      SystemDictionary::_placeholders        = NULL;
@@ -94,6 +95,9 @@ bool        SystemDictionary::_has_checkPackageAccess     =  false;
 // lazily initialized klass variables
 Klass* volatile SystemDictionary::_abstract_ownable_synchronizer_klass = NULL;
 
+#if INCLUDE_JFR
+static const Symbol* jfr_event_handler_proxy = NULL;
+#endif // INCLUDE_JFR
 
 // ----------------------------------------------------------------------------
 // Java-level SystemLoader
@@ -139,6 +143,9 @@ bool SystemDictionary::is_internal_format(Symbol* class_name) {
 }
 
 #endif
+#if INCLUDE_JFR
+#include "jfr/jfr.hpp"
+#endif
 
 // ----------------------------------------------------------------------------
 // Parallel class loading check
@@ -178,12 +185,14 @@ Klass* SystemDictionary::resolve_or_fail(Symbol* class_name, Handle class_loader
   if (HAS_PENDING_EXCEPTION || klass == NULL) {
     KlassHandle k_h(THREAD, klass);
     // can return a null klass
-    klass = handle_resolution_exception(class_name, class_loader, protection_domain, throw_error, k_h, THREAD);
+    klass = handle_resolution_exception(class_name, throw_error, k_h, THREAD);
   }
   return klass;
 }
 
-Klass* SystemDictionary::handle_resolution_exception(Symbol* class_name, Handle class_loader, Handle protection_domain, bool throw_error, KlassHandle klass_h, TRAPS) {
+Klass* SystemDictionary::handle_resolution_exception(Symbol* class_name,
+                                                     bool throw_error,
+                                                     KlassHandle klass_h, TRAPS) {
   if (HAS_PENDING_EXCEPTION) {
     // If we have a pending exception we forward it to the caller, unless throw_error is true,
     // in which case we have to check whether the pending exception is a ClassNotFoundException,
@@ -391,7 +400,7 @@ Klass* SystemDictionary::resolve_super_or_fail(Symbol* child_name,
   }
   if (HAS_PENDING_EXCEPTION || superk_h() == NULL) {
     // can null superk
-    superk_h = KlassHandle(THREAD, handle_resolution_exception(class_name, class_loader, protection_domain, true, superk_h, THREAD));
+    superk_h = KlassHandle(THREAD, handle_resolution_exception(class_name, true, superk_h, THREAD));
   }
 
   return superk_h();
@@ -596,17 +605,21 @@ instanceKlassHandle SystemDictionary::handle_parallel_super_load(
   return (nh);
 }
 
-static void post_class_load_event(EventClassLoad* event, const InstanceKlass* k, Handle initiating_loader) {
-  assert(event != NULL, "invariant");
-  assert(k != NULL, "invariant");
-  assert(event->should_commit(), "invariant");
-  event->set_loadedClass(k);
-  event->set_definingClassLoader(k->class_loader_data());
-  oop class_loader = initiating_loader.is_null() ? (oop)NULL : initiating_loader();
-  event->set_initiatingClassLoader(class_loader != NULL ?
-                                   ClassLoaderData::class_loader_data_or_null(class_loader) :
-                                   (ClassLoaderData*)NULL);
-  event->commit();
+// utility function for class load event
+static void post_class_load_event(EventClassLoad &event,
+                                  instanceKlassHandle k,
+                                  Handle initiating_loader) {
+#if INCLUDE_JFR
+  if (event.should_commit()) {
+    event.set_loadedClass(k());
+    event.set_definingClassLoader(k->class_loader_data());
+    oop class_loader = initiating_loader.is_null() ? (oop)NULL : initiating_loader();
+    event.set_initiatingClassLoader(class_loader != NULL ?
+                                    ClassLoaderData::class_loader_data_or_null(class_loader) :
+                                    (ClassLoaderData*)NULL);
+    event.commit();
+  }
+#endif
 }
 
 Klass* SystemDictionary::resolve_instance_class_or_null(Symbol* name,
@@ -867,9 +880,7 @@ Klass* SystemDictionary::resolve_instance_class_or_null(Symbol* name,
     return NULL;
   }
 
-  if (class_load_start_event.should_commit()) {
-    post_class_load_event(&class_load_start_event, k(), class_loader);
-  }
+  post_class_load_event(class_load_start_event, k, class_loader);
 
 #ifdef ASSERT
   {
@@ -1054,10 +1065,8 @@ Klass* SystemDictionary::parse_stream(Symbol* class_name,
         assert(THREAD->is_Java_thread(), "thread->is_Java_thread()");
         JvmtiExport::post_class_load((JavaThread *) THREAD, k());
     }
-    
-    if (class_load_start_event.should_commit()) {
-      post_class_load_event(&class_load_start_event, k(), class_loader);
-    }  
+
+    post_class_load_event(class_load_start_event, k, class_loader);
   }
   assert(host_klass.not_null() || cp_patches == NULL,
          "cp_patches only found with host_klass");
@@ -1140,11 +1149,13 @@ Klass* SystemDictionary::resolve_from_stream(Symbol* class_name,
     assert(is_internal_format(parsed_name),
            "external class name format used internally");
 
+#if INCLUDE_JFR
     {
       InstanceKlass* ik = k();
       ON_KLASS_CREATION(ik, parser, THREAD);
       k = instanceKlassHandle(ik);
     }
+#endif
 
     // Add class just loaded
     // If a class loader supports parallel classloading handle parallel define requests
@@ -1328,6 +1339,24 @@ instanceKlassHandle SystemDictionary::load_instance_class(Symbol* class_name, Ha
     if (!k.is_null()) {
       k = find_or_define_instance_class(class_name, class_loader, k, CHECK_(nh));
     }
+
+#if INCLUDE_JFR
+    if (k.is_null() && (class_name == jfr_event_handler_proxy)) {
+      assert(jfr_event_handler_proxy != NULL, "invariant");
+      // EventHandlerProxy class is generated dynamically in
+      // EventHandlerProxyCreator::makeEventHandlerProxyClass
+      // method, so we generate a Java call from here.
+      //
+      // EventHandlerProxy class will finally be defined in
+      // SystemDictionary::resolve_from_stream method, down
+      // the call stack. Bootstrap classloader is parallel-capable,
+      // so no concurrency issues are expected.
+      CLEAR_PENDING_EXCEPTION;
+      k = JfrUpcalls::load_event_handler_proxy_class(THREAD);
+      assert(!k.is_null(), "invariant");
+    }
+#endif
+
     return k;
   } else {
     // Use user specified class loader to load class. Call loadClass operation on class_loader.
@@ -1484,7 +1513,8 @@ void SystemDictionary::define_instance_class(instanceKlassHandle k, TRAPS) {
       JvmtiExport::post_class_load((JavaThread *) THREAD, k());
 
   }
-  JFR_ONLY(post_class_define_event(k(), loader_data);)
+
+  post_class_define_event(k(), loader_data);
 }
 
 // Support parallel classloading
@@ -1746,6 +1776,7 @@ bool SystemDictionary::do_unloading(BoolObjectClosure* is_alive, bool clean_aliv
   // First, mark for unload all ClassLoaderData referencing a dead class loader.
   bool unloading_occurred = ClassLoaderDataGraph::do_unloading(is_alive, clean_alive);
   if (unloading_occurred) {
+    JFR_ONLY(Jfr::on_unloading_classes();)
     dictionary()->do_unloading();
     constraints()->purge_loader_constraints();
     resolution_errors()->purge_resolution_errors();
@@ -1879,6 +1910,9 @@ void SystemDictionary::initialize(TRAPS) {
   _system_loader_lock_obj = oopFactory::new_intArray(0, CHECK);
   // Initialize basic classes
   initialize_preloaded_classes(CHECK);
+#if INCLUDE_JFR
+  jfr_event_handler_proxy = SymbolTable::new_permanent_symbol("jdk/jfr/proxy/internal/EventHandlerProxy", CHECK);
+#endif // INCLUDE_JFR
 }
 
 // Compact table of directions on the initialization of klasses:
@@ -2214,12 +2248,13 @@ bool SystemDictionary::add_loader_constraint(Symbol* class_name,
 
 // Add entry to resolution error table to record the error when the first
 // attempt to resolve a reference to a class has failed.
-void SystemDictionary::add_resolution_error(constantPoolHandle pool, int which, Symbol* error) {
+void SystemDictionary::add_resolution_error(constantPoolHandle pool, int which,
+                                            Symbol* error, Symbol* message) {
   unsigned int hash = resolution_errors()->compute_hash(pool, which);
   int index = resolution_errors()->hash_to_index(hash);
   {
     MutexLocker ml(SystemDictionary_lock, Thread::current());
-    resolution_errors()->add_entry(index, hash, pool, which, error);
+    resolution_errors()->add_entry(index, hash, pool, which, error, message);
   }
 }
 
@@ -2229,13 +2264,19 @@ void SystemDictionary::delete_resolution_error(ConstantPool* pool) {
 }
 
 // Lookup resolution error table. Returns error if found, otherwise NULL.
-Symbol* SystemDictionary::find_resolution_error(constantPoolHandle pool, int which) {
+Symbol* SystemDictionary::find_resolution_error(constantPoolHandle pool, int which,
+                                                Symbol** message) {
   unsigned int hash = resolution_errors()->compute_hash(pool, which);
   int index = resolution_errors()->hash_to_index(hash);
   {
     MutexLocker ml(SystemDictionary_lock, Thread::current());
     ResolutionErrorEntry* entry = resolution_errors()->find_entry(index, hash, pool, which);
-    return (entry != NULL) ? entry->error() : (Symbol*)NULL;
+    if (entry != NULL) {
+      *message = entry->message();
+      return entry->error();
+    } else {
+      return NULL;
+    }
   }
 }
 

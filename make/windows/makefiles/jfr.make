@@ -35,7 +35,7 @@
 
 GENERATED   = ../generated
 
-JFR_TOOLS_SRCDIR = $(WorkSpace)/make/src/classes
+JFR_TOOLS_SRCDIR = $(WorkSpace)/src/share/vm/jfr
 JFR_TOOLS_OUTPUTDIR = $(GENERATED)/tools/jfr
 
 JFR_OUTPUTDIR = $(GENERATED)/jfrfiles
@@ -44,13 +44,17 @@ JFR_SRCDIR = $(WorkSpace)/src/share/vm/jfr/metadata
 METADATA_XML = $(JFR_SRCDIR)/metadata.xml
 METADATA_XSD = $(JFR_SRCDIR)/metadata.xsd
 
+# Changing these will trigger a rebuild of generated jfr files.
+JFR_DEPS = $(METADATA_XML) \
+	$(METADATA_XSD)
+
 JfrGeneratedFiles = \
 	$(JFR_OUTPUTDIR)/jfrEventControl.hpp \
 	$(JFR_OUTPUTDIR)/jfrEventIds.hpp \
 	$(JFR_OUTPUTDIR)/jfrPeriodic.hpp \
 	$(JFR_OUTPUTDIR)/jfrTypes.hpp
 
-JfrGenSource = $(JFR_TOOLS_SRCDIR)/build/tools/jfr/GenerateJfrFiles.java
+JfrGenSource = $(JFR_TOOLS_SRCDIR)/GenerateJfrFiles.java
 JfrGenClass = $(JFR_TOOLS_OUTPUTDIR)/build/tools/jfr/GenerateJfrFiles.class
 
 .PHONY: all cleanall

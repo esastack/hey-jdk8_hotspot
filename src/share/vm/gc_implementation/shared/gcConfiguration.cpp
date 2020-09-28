@@ -22,6 +22,7 @@
  *
  */
 #include "precompiled.hpp"
+
 #include "gc_interface/collectedHeap.hpp"
 #include "gc_implementation/shared/gcConfiguration.hpp"
 #include "memory/universe.hpp"

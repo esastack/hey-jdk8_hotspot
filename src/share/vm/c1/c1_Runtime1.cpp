@@ -41,6 +41,7 @@
 #include "gc_interface/collectedHeap.hpp"
 #include "interpreter/bytecode.hpp"
 #include "interpreter/interpreter.hpp"
+#include "jfr/support/jfrIntrinsics.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/barrierSet.hpp"
 #include "memory/oopFactory.hpp"

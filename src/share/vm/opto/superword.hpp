@@ -60,30 +60,8 @@
 // second statement is considered the right element.
 
 class SWPointer;
+class OrderedPair;
 
-//------------------------------OrderedPair---------------------------
-// Ordered pair of Node*.
-class OrderedPair VALUE_OBJ_CLASS_SPEC {
- protected:
-  Node* _p1;
-  Node* _p2;
- public:
-  OrderedPair() : _p1(NULL), _p2(NULL) {}
-  OrderedPair(Node* p1, Node* p2) {
-    if (p1->_idx < p2->_idx) {
-      _p1 = p1; _p2 = p2;
-    } else {
-      _p1 = p2; _p2 = p1;
-    }
-  }
-
-  bool operator==(const OrderedPair &rhs) {
-    return _p1 == rhs._p1 && _p2 == rhs._p2;
-  }
-  void print() { tty->print("  (%d, %d)", _p1->_idx, _p2->_idx); }
-
-  static const OrderedPair initial;
-};
 // ========================= Dependence Graph =====================
 
 class DepMem;
@@ -221,6 +199,31 @@ class SWNodeInfo VALUE_OBJ_CLASS_SPEC {
 
   SWNodeInfo() : _alignment(-1), _depth(0), _velt_type(NULL), _my_pack(NULL) {}
   static const SWNodeInfo initial;
+};
+
+// JVMCI: OrderedPair is moved up to deal with compilation issues on Windows
+//------------------------------OrderedPair---------------------------
+// Ordered pair of Node*.
+class OrderedPair VALUE_OBJ_CLASS_SPEC {
+ protected:
+  Node* _p1;
+  Node* _p2;
+ public:
+  OrderedPair() : _p1(NULL), _p2(NULL) {}
+  OrderedPair(Node* p1, Node* p2) {
+    if (p1->_idx < p2->_idx) {
+      _p1 = p1; _p2 = p2;
+    } else {
+      _p1 = p2; _p2 = p1;
+    }
+  }
+
+  bool operator==(const OrderedPair &rhs) {
+    return _p1 == rhs._p1 && _p2 == rhs._p2;
+  }
+  void print() { tty->print("  (%d, %d)", _p1->_idx, _p2->_idx); }
+
+  static const OrderedPair initial;
 };
 
 // -----------------------------SuperWord---------------------------------
@@ -444,6 +447,7 @@ class SuperWord : public ResourceObj {
   void print_stmt(Node* s);
   char* blank(uint depth);
 };
+
 
 
 //------------------------------SWPointer---------------------------

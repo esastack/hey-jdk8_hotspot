@@ -31,13 +31,13 @@
 #include "gc_implementation/g1/heapRegionBounds.inline.hpp"
 #include "gc_implementation/g1/heapRegionRemSet.hpp"
 #include "gc_implementation/g1/heapRegionManager.inline.hpp"
-#include "gc_implementation/g1/heapRegionTracer.hpp"
 #include "gc_implementation/shared/liveRange.hpp"
 #include "memory/genOopClosures.inline.hpp"
 #include "memory/iterator.hpp"
 #include "memory/space.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/orderAccess.inline.hpp"
+#include "gc_implementation/g1/heapRegionTracer.hpp"
 
 PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
@@ -210,6 +210,31 @@ void HeapRegion::calc_gc_efficiency() {
   double region_elapsed_time_ms =
     g1p->predict_region_elapsed_time_ms(this, false /* for_young_gc */);
   _gc_efficiency = (double) reclaimable_bytes() / region_elapsed_time_ms;
+}
+
+void HeapRegion::set_free() {
+  report_region_type_change(G1HeapRegionTraceType::Free);
+  _type.set_free();
+}
+
+void HeapRegion::set_eden() {
+  report_region_type_change(G1HeapRegionTraceType::Eden);
+  _type.set_eden();
+}
+
+void HeapRegion::set_eden_pre_gc() {
+  report_region_type_change(G1HeapRegionTraceType::Eden);
+  _type.set_eden_pre_gc();
+}
+
+void HeapRegion::set_survivor() {
+  report_region_type_change(G1HeapRegionTraceType::Survivor);
+  _type.set_survivor();
+}
+
+void HeapRegion::set_old() {
+  report_region_type_change(G1HeapRegionTraceType::Old);
+  _type.set_old();
 }
 
 void HeapRegion::set_startsHumongous(HeapWord* new_top, HeapWord* new_end) {

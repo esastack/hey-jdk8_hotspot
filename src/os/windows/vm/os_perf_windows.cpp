@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,6 @@
  *
  */
 
-#include "precompiled.hpp"
 #include "iphlp_interface.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
@@ -552,8 +551,8 @@ static const char* make_fully_qualified_counter_path(const char* object_name,
 }
 
 static void log_invalid_pdh_index(DWORD index) {
-  tty->print_cr("Unable to resolve PDH index: (%ld)", index);
-  tty->print_cr("Please check the registry if this performance object/counter is disabled");
+  if (LogJFR) tty->print_cr("Unable to resolve PDH index: (%ld)", index);
+  if (LogJFR) tty->print_cr("Please check the registry if this performance object/counter is disabled");
 }
 
 static bool is_valid_pdh_index(DWORD index) {
@@ -793,8 +792,8 @@ static double cpu_factor() {
 }
 
 static void log_error_message_on_no_PDH_artifact(const char* full_counter_name) {
-  tty->print_cr("Unable to register PDH query for \"%s\"", full_counter_name);
-  tty->print_cr("Please check the registry if this performance object/counter is disabled");
+  if (LogJFR) tty->print_cr("Unable to register PDH query for \"%s\"", full_counter_name);
+  if (LogJFR) tty->print_cr("Please check the registry if this performance object/counter is disabled");
 }
 
 static int initialize_cpu_query_counters(MultiCounterQueryP cpu_query, DWORD pdh_counter_idx) {

@@ -28,8 +28,8 @@
 #include "classfile/javaClasses.hpp"
 #include "jfr/recorder/checkpoint/types/traceid/jfrTraceId.inline.hpp"
 #include "jfr/recorder/service/jfrOptionSet.hpp"
-#include "jfr/writers/jfrWriterHost.hpp"
 #include "jfr/writers/jfrEncoding.hpp"
+#include "jfr/writers/jfrWriterHost.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/oop.hpp"
 #include "oops/symbol.hpp"
@@ -222,11 +222,18 @@ inline void WriterHost<BE, IE, WriterPolicyImpl>::write(jstring string) {
     write<u1>(EMPTY_STRING);
     return;
   }
+  const bool is_latin1_encoded = false;
   const typeArrayOop value = java_lang_String::value(string_oop);
   assert(value != NULL, "invariant");
-  write<u1>(UTF16);
-  write<u4>((u4)length);
-  write(value->char_at_addr(0), length);
+  if (is_latin1_encoded) {
+    write<u1>(LATIN1);
+    write<u4>((u4)length);
+    be_write(value->byte_at_addr(0), length);
+  } else {
+    write<u1>(UTF16);
+    write<u4>((u4)length);
+    write(value->char_at_addr(0), length);
+  }
 }
 
 template <typename Writer, typename T>
@@ -259,22 +266,22 @@ void WriterHost<BE, IE, WriterPolicyImpl>::write(const Symbol* symbol) {
 
 template <typename BE, typename IE, typename WriterPolicyImpl>
 void WriterHost<BE, IE, WriterPolicyImpl>::write(const Ticks& time) {
-  write((uintptr_t)JfrTime::is_ft_enabled() ? time.ft_value() : time.value());
+  write((u8)JfrTime::is_ft_enabled() ? time.ft_value() : time.value());
 }
 
 template <typename BE, typename IE, typename WriterPolicyImpl>
 void WriterHost<BE, IE, WriterPolicyImpl>::write(const Tickspan& time) {
-  write((uintptr_t)JfrTime::is_ft_enabled() ? time.ft_value() : time.value());
+  write((u8)JfrTime::is_ft_enabled() ? time.ft_value() : time.value());
 }
 
 template <typename BE, typename IE, typename WriterPolicyImpl>
 void WriterHost<BE, IE, WriterPolicyImpl>::write(const JfrTicks& time) {
-  write((uintptr_t)time.value());
+  write((u8)time.value());
 }
 
 template <typename BE, typename IE, typename WriterPolicyImpl>
 void WriterHost<BE, IE, WriterPolicyImpl>::write(const JfrTickspan& time) {
-  write((uintptr_t)time.value());
+  write((u8)time.value());
 }
 
 template <typename BE, typename IE, typename WriterPolicyImpl>

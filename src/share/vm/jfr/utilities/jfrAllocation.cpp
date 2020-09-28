@@ -25,26 +25,33 @@
 #include "precompiled.hpp"
 #include "jfr/recorder/jfrRecorder.hpp"
 #include "jfr/utilities/jfrAllocation.hpp"
-#include "jfr/utilities/jfrLog.hpp"
+#include "jfr/utilities/jfrTypes.hpp"
 #include "memory/allocation.inline.hpp"
-#include "runtime/atomic.hpp"
-#include "runtime/orderAccess.hpp"
+#include "runtime/atomic.inline.hpp"
+#include "runtime/orderAccess.inline.hpp"
 #include "runtime/vm_version.hpp"
+#include "runtime/mutexLocker.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/nativeCallStack.hpp"
 
-#ifdef ASSERT
-static jlong atomic_add_jlong(jlong value, jlong volatile* const dest) {
-  assert(VM_Version::supports_cx8(), "unsupported");
+jlong atomic_add_jlong(jlong value, jlong volatile* const dest) {
   jlong compare_value;
   jlong exchange_value;
+#ifndef SUPPORTS_NATIVE_CX8
+  if (!VM_Version::supports_cx8()) {
+    MutexLockerEx mu(JfrCounters_lock, Mutex::_no_safepoint_check_flag);
+    return *dest += value;
+  }
+#endif
   do {
     compare_value = OrderAccess::load_acquire(dest);
     exchange_value = compare_value + value;
   } while (Atomic::cmpxchg(exchange_value, dest, compare_value) != compare_value);
   return exchange_value;
 }
+
+#ifdef ASSERT
 
 // debug statistics
 static volatile jlong _allocated_bytes = 0;
@@ -55,9 +62,9 @@ static void add(size_t alloc_size) {
   if (!JfrRecorder::is_created()) {
     const jlong total_allocated = atomic_add_jlong((jlong)alloc_size, &_allocated_bytes);
     const jlong current_live_set = atomic_add_jlong((jlong)alloc_size, &_live_set_bytes);
-    log_trace(jfr, system)("Allocation: [" SIZE_FORMAT "] bytes", alloc_size);
-    log_trace(jfr, system)("Total alloc [" JLONG_FORMAT "] bytes", total_allocated);
-    log_trace(jfr, system)("Liveset:    [" JLONG_FORMAT "] bytes", current_live_set);
+    if (LogJFR && Verbose) tty->print_cr("Allocation: [" SIZE_FORMAT "] bytes", alloc_size);
+    if (LogJFR && Verbose) tty->print_cr("Total alloc [" JLONG_FORMAT "] bytes", total_allocated);
+    if (LogJFR && Verbose) tty->print_cr("Liveset:    [" JLONG_FORMAT "] bytes", current_live_set);
   }
 }
 
@@ -65,9 +72,9 @@ static void subtract(size_t dealloc_size) {
   if (!JfrRecorder::is_created()) {
     const jlong total_deallocated = atomic_add_jlong((jlong)dealloc_size, &_deallocated_bytes);
     const jlong current_live_set = atomic_add_jlong(((jlong)dealloc_size * -1), &_live_set_bytes);
-    log_trace(jfr, system)("Deallocation: [" SIZE_FORMAT "] bytes", dealloc_size);
-    log_trace(jfr, system)("Total dealloc [" JLONG_FORMAT "] bytes", total_deallocated);
-    log_trace(jfr, system)("Liveset:      [" JLONG_FORMAT "] bytes", current_live_set);
+    if (LogJFR && Verbose) tty->print_cr("Deallocation: [" SIZE_FORMAT "] bytes", dealloc_size);
+    if (LogJFR && Verbose) tty->print_cr("Total dealloc [" JLONG_FORMAT "] bytes", total_deallocated);
+    if (LogJFR && Verbose) tty->print_cr("Liveset:      [" JLONG_FORMAT "] bytes", current_live_set);
   }
 }
 
@@ -79,7 +86,7 @@ static void hook_memory_deallocation(size_t dealloc_size) {
 static void hook_memory_allocation(const char* allocation, size_t alloc_size) {
   if (NULL == allocation) {
     if (!JfrRecorder::is_created()) {
-      log_warning(jfr, system)("Memory allocation failed for size [" SIZE_FORMAT "] bytes", alloc_size);
+      if (LogJFR) tty->print_cr("Memory allocation failed for size [" SIZE_FORMAT "] bytes", alloc_size);
       return;
     } else {
       // after critical startup, fail as by default

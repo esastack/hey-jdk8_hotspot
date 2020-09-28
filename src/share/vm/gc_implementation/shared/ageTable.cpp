@@ -24,8 +24,8 @@
 
 #include "precompiled.hpp"
 #include "gc_implementation/shared/ageTable.hpp"
-#include "gc_implementation/shared/gcPolicyCounters.hpp"
 #include "gc_implementation/shared/ageTableTracer.hpp"
+#include "gc_implementation/shared/gcPolicyCounters.hpp"
 #include "memory/collectorPolicy.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/sharedHeap.hpp"
@@ -93,9 +93,7 @@ uint ageTable::compute_tenuring_threshold(size_t survivor_capacity, GCTracer &tr
   }
   uint result = age < MaxTenuringThreshold ? age : MaxTenuringThreshold;
 
-  if (PrintTenuringDistribution || UsePerfData
-          || AgeTableTracer::is_tenuring_distribution_event_enabled()
-          ) {
+  if (PrintTenuringDistribution || UsePerfData || AgeTableTracer::is_tenuring_distribution_event_enabled()) {
 
     if (PrintTenuringDistribution) {
       gclog_or_tty->cr();
@@ -113,11 +111,7 @@ uint ageTable::compute_tenuring_threshold(size_t survivor_capacity, GCTracer &tr
                                         age,    sizes[age]*oopSize,          total*oopSize);
         }
       }
-
-      if (AgeTableTracer::is_tenuring_distribution_event_enabled()) {
-        AgeTableTracer::send_tenuring_distribution_event(age, sizes[age]*oopSize, tracer);
-      }
-      
+      AgeTableTracer::send_tenuring_distribution_event(age, wordSize * oopSize, tracer);
       if (UsePerfData) {
         _perf_sizes[age]->set_value(sizes[age]*oopSize);
       }

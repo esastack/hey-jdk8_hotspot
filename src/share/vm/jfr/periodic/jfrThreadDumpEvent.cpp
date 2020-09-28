@@ -26,7 +26,6 @@
 #include "jfr/dcmd/jfrDcmds.hpp"
 #include "jfr/jfrEvents.hpp"
 #include "jfr/periodic/jfrThreadDumpEvent.hpp"
-#include "jfr/utilities/jfrLog.hpp"
 #include "utilities/exceptions.hpp"
 #include "utilities/ostream.hpp"
 
@@ -43,8 +42,8 @@ static bool execute_dcmd(bufferedStream& st, const char* const cmd) {
   // delegate to DCmd execution
   DCmd::parse_and_execute(DCmd_Source_Internal, &st, cmd, ' ', THREAD);
   if (HAS_PENDING_EXCEPTION) {
-    log_debug(jfr, system)("unable to create jfr event for DCMD %s", cmd);
-    log_debug(jfr, system)("exception type: %s", PENDING_EXCEPTION->klass()->external_name());
+    if (LogJFR) tty->print_cr("unable to create jfr event for DCMD %s", cmd);
+    if (LogJFR) tty->print_cr("exception type: %s", PENDING_EXCEPTION->klass()->external_name());
     // don't unwind this exception
     CLEAR_PENDING_EXCEPTION;
     // if exception occurred,

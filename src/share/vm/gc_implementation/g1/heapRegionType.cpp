@@ -24,7 +24,6 @@
 
 #include "precompiled.hpp"
 #include "gc_implementation/g1/heapRegionType.hpp"
-#include "gc_implementation/g1/g1HeapRegionTraceType.hpp"
 
 bool HeapRegionType::is_valid(Tag tag) {
   switch (tag) {
@@ -78,8 +77,6 @@ G1HeapRegionTraceType::Type HeapRegionType::get_trace_type() {
     case HumStartsTag:          return G1HeapRegionTraceType::StartsHumongous;
     case HumContTag:            return G1HeapRegionTraceType::ContinuesHumongous;
     case OldTag:                return G1HeapRegionTraceType::Old;
-//    case OpenArchiveTag:        return G1HeapRegionTraceType::OpenArchive;
-//    case ClosedArchiveTag:      return G1HeapRegionTraceType::ClosedArchive;
     default:
       ShouldNotReachHere();
       return G1HeapRegionTraceType::Free; // keep some compilers happy

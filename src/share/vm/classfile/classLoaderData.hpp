@@ -32,8 +32,9 @@
 #include "runtime/mutex.hpp"
 #include "utilities/growableArray.hpp"
 #include "utilities/macros.hpp"
-#include "utilities/ticks.hpp"
+#if INCLUDE_JFR
 #include "jfr/support/jfrTraceIdExtension.hpp"
+#endif
 
 //
 // A class loader represents a linkset. Conceptually, a linkset identifies
@@ -207,7 +208,7 @@ class ClassLoaderData : public CHeapObj<mtClass> {
   static Metaspace* _rw_metaspace;
 
   JFR_ONLY(DEFINE_TRACE_ID_FIELD;)
- 
+
   void set_next(ClassLoaderData* next) { _next = next; }
   ClassLoaderData* next() const        { return _next; }
 
@@ -217,12 +218,6 @@ class ClassLoaderData : public CHeapObj<mtClass> {
   void set_metaspace(Metaspace* m) { _metaspace = m; }
 
   Mutex* metaspace_lock() const { return _metaspace_lock; }
-
-public:
-  // GC interface.
-  void clear_claimed()          { _claimed = 0; }
-  bool claimed() const          { return _claimed == 1; }
-  bool claim();
 
   void unload();
   bool keep_alive() const       { return _keep_alive; }
@@ -236,7 +231,12 @@ public:
   // Allocate out of this class loader data
   MetaWord* allocate(size_t size);
 
-public:
+ public:
+
+  // GC interface.
+  void clear_claimed()          { _claimed = 0; }
+  bool claimed() const          { return _claimed == 1; }
+  bool claim();
 
   bool is_alive(BoolObjectClosure* is_alive_closure) const;
 
@@ -321,7 +321,7 @@ public:
   Metaspace* ro_metaspace();
   Metaspace* rw_metaspace();
   void initialize_shared_metaspaces();
-  
+
   JFR_ONLY(DEFINE_TRACE_ID_METHODS;)
 };
 

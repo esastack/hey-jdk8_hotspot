@@ -605,7 +605,7 @@ class os: AllStatic {
   // Unload library
   static void  dll_unload(void *lib);
 
-    // Callback for loaded module information
+  // Callback for loaded module information
   // Input parameters:
   //    char*     module_file_name,
   //    address   module_base_addr,
@@ -614,7 +614,7 @@ class os: AllStatic {
   typedef int (*LoadedModulesCallbackFunc)(const char *, address, address, void *);
 
   static int get_loaded_modules_info(LoadedModulesCallbackFunc callback, void *param);
-  
+
   // Return the handle of this process
   static void* get_default_process_handle();
 
@@ -730,7 +730,7 @@ class os: AllStatic {
   static void  free    (void *memblock, MEMFLAGS flags = mtNone);
   static bool  check_heap(bool force = false);      // verify C heap integrity
   static char* strdup(const char *, MEMFLAGS flags = mtInternal);  // Like strdup
-  
+
 #ifndef PRODUCT
   static julong num_mallocs;         // # of calls to malloc/realloc
   static julong alloc_bytes;         // # of bytes allocated

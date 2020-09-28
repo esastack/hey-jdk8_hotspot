@@ -30,7 +30,7 @@
 JvmtiOutDir=jvmtifiles
 !include $(WorkSpace)/make/windows/makefiles/jvmti.make
 
-# Pick up rules for building jfr
+# Pick up rules for building JFR
 JfrOutDir=jfrfiles
 !include $(WorkSpace)/make/windows/makefiles/jfr.make
 

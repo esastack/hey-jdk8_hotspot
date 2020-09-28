@@ -25,12 +25,14 @@
 #include "precompiled.hpp"
 #include "gc_implementation/shared/gcId.hpp"
 #include "gc_interface/allocTracer.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "runtime/handles.hpp"
 #include "utilities/globalDefinitions.hpp"
-#include "jfr/jfrEvents.hpp"
+#if INCLUDE_JFR
 #include "jfr/support/jfrAllocationTracer.hpp"
+#endif
 
-void AllocTracer::send_allocation_outside_tlab(KlassHandle klass, HeapWord* obj, size_t alloc_size, Thread* thread) {
+void AllocTracer::send_allocation_outside_tlab_event(KlassHandle klass, HeapWord* obj, size_t alloc_size, Thread* thread) {
   JFR_ONLY(JfrAllocationTracer tracer(obj, alloc_size, thread);)
   EventObjectAllocationOutsideTLAB event;
   if (event.should_commit()) {
@@ -40,7 +42,7 @@ void AllocTracer::send_allocation_outside_tlab(KlassHandle klass, HeapWord* obj,
   }
 }
 
-void AllocTracer::send_allocation_in_new_tlab(KlassHandle klass, HeapWord* obj, size_t tlab_size, size_t alloc_size, Thread* thread) {
+void AllocTracer::send_allocation_in_new_tlab_event(KlassHandle klass, HeapWord* obj, size_t tlab_size, size_t alloc_size, Thread* thread) {
   JFR_ONLY(JfrAllocationTracer tracer(obj, alloc_size, thread);)
   EventObjectAllocationInNewTLAB event;
   if (event.should_commit()) {

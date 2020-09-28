@@ -51,7 +51,7 @@ class JfrTraceIdEpoch : AllStatic {
   static void shift_epoch();
 
  public:
-  static bool epoch() {
+  static u1 epoch() {
     return _epoch_state;
   }
 

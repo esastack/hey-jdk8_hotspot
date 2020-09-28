@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "memory/allocation.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/arguments.hpp"
@@ -91,32 +92,6 @@ void Flag::set_bool(bool value) {
   *((bool*) _addr) = value;
 }
 
-bool Flag::is_int() const {
-  return strcmp(_type, "int")  == 0;
-}
-
-int Flag::get_int() const {
-  return *((int*) _addr);
-}
-
-void Flag::set_int(int value) {
-  check_writable();
-  *((int*) _addr) = value;
-}
-
-bool Flag::is_uint() const {
-  return strcmp(_type, "uint")  == 0;
-}
-
-uint Flag::get_uint() const {
-  return *((uint*) _addr);
-}
-
-void Flag::set_uint(uint value) {
-  check_writable();
-  *((uint*) _addr) = value;
-}
-
 bool Flag::is_intx() const {
   return strcmp(_type, "intx")  == 0;
 }
@@ -154,19 +129,6 @@ uint64_t Flag::get_uint64_t() const {
 void Flag::set_uint64_t(uint64_t value) {
   check_writable();
   *((uint64_t*) _addr) = value;
-}
-
-bool Flag::is_size_t() const {
-  return strcmp(_type, "size_t") == 0;
-}
-
-size_t Flag::get_size_t() const {
-  return *((size_t*) _addr);
-}
-
-void Flag::set_size_t(size_t value) {
-  check_writable();
-  *((size_t*) _addr) = value;
 }
 
 bool Flag::is_double() const {

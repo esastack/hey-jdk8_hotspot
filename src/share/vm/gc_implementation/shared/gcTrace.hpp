@@ -156,7 +156,6 @@ class YoungGCTracer : public GCTracer {
  public:
   void report_promotion_failed(const PromotionFailedInfo& pf_info);
   void report_tenuring_threshold(const uint tenuring_threshold);
-
   /*
    * Methods for reporting Promotion in new or outside PLAB Events.
    *
@@ -183,7 +182,6 @@ class YoungGCTracer : public GCTracer {
  private:
   void send_young_gc_event() const;
   void send_promotion_failed_event(const PromotionFailedInfo& pf_info) const;
-
   bool should_send_promotion_in_new_plab_event() const;
   bool should_send_promotion_outside_plab_event() const;
   void send_promotion_in_new_plab_event(Klass* klass, size_t obj_size,
@@ -242,10 +240,10 @@ class ParNewTracer : public YoungGCTracer {
 
 #if INCLUDE_ALL_GCS
 class G1MMUTracer : public AllStatic {
-  static void send_g1_mmu_event(double time_slice_ms, double gc_time_ms, double max_time_ms, bool gc_thread);
+  static void send_g1_mmu_event(double time_slice_ms, double gc_time_ms, double max_time_ms);
 
  public:
-  static void report_mmu(double time_slice_sec, double gc_time_sec, double max_time_sec, bool gc_thread);
+  static void report_mmu(double time_slice_sec, double gc_time_sec, double max_time_sec);
 };
 
 class G1NewTracer : public YoungGCTracer {

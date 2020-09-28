@@ -44,9 +44,6 @@
 #include "gc_implementation/shared/gcTraceTime.hpp"
 #include "gc_implementation/shared/isGCActiveMark.hpp"
 #include "gc_interface/gcCause.hpp"
-#if INCLUDE_JFR
-#include "jfr/jfr.hpp"
-#endif
 #include "memory/gcLocker.inline.hpp"
 #include "memory/referencePolicy.hpp"
 #include "memory/referenceProcessor.hpp"
@@ -61,6 +58,9 @@
 #include "services/memTracker.hpp"
 #include "utilities/events.hpp"
 #include "utilities/stack.inline.hpp"
+#if INCLUDE_JFR
+#include "jfr/jfr.hpp"
+#endif // INCLUDE_JFR
 
 #include <math.h>
 

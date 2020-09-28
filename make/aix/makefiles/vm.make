@@ -1,6 +1,6 @@
 #
 # Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
-# Copyright 2012, 2013 SAP AG. All rights reserved.
+# Copyright (c) 2012, 2020 SAP SE. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -147,11 +147,15 @@ CFLAGS += -DALLOW_OPERATOR_NEW_USAGE
 LIBJVM_DEBUGINFO   = lib$(JVM).debuginfo
 LIBJVM_DIZ         = lib$(JVM).diz
 
+ifneq ($(ENABLE_JFR),true)
+EXCLUDE_JFR_PATHS:= -o -name jfr -prune
+endif
+
 SPECIAL_PATHS:=adlc c1 gc_implementation opto shark libadt
 
 SOURCE_PATHS=\
   $(shell find $(HS_COMMON_SRC)/share/vm/* -type d \! \
-      \( -name DUMMY $(foreach dir,$(SPECIAL_PATHS),-o -name $(dir)) \))
+      \( -name DUMMY $(foreach dir,$(SPECIAL_PATHS),-o -name $(dir)) $(EXCLUDE_JFR_PATHS) \))
 SOURCE_PATHS+=$(HS_COMMON_SRC)/os/$(Platform_os_family)/vm
 SOURCE_PATHS+=$(HS_COMMON_SRC)/os/posix/vm
 SOURCE_PATHS+=$(HS_COMMON_SRC)/cpu/$(SRCARCH)/vm

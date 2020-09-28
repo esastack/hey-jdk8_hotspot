@@ -24,18 +24,18 @@
 
 #include "precompiled.hpp"
 #include "jfr/recorder/storage/jfrStorageControl.hpp"
-#include "runtime/atomic.hpp"
+#include "runtime/atomic.inline.hpp"
 #include "runtime/mutexLocker.hpp"
-#include "runtime/orderAccess.hpp"
+#include "runtime/orderAccess.inline.hpp"
 
 // returns the updated value
 static jlong atomic_add(size_t value, size_t volatile* const dest) {
   size_t compare_value;
   size_t exchange_value;
   do {
-    compare_value = (size_t)OrderAccess::load_acquire((julong*)dest);
+    compare_value = OrderAccess::load_ptr_acquire((intptr_t*)dest);
     exchange_value = compare_value + value;
-  } while (Atomic::cmpxchg(exchange_value, dest, compare_value) != compare_value);
+  } while ((unsigned long)Atomic::cmpxchg_ptr((intptr_t)exchange_value, (volatile intptr_t*)dest, (intptr_t)compare_value) != compare_value);
   return exchange_value;
 }
 
@@ -43,10 +43,10 @@ static jlong atomic_dec(size_t volatile* const dest) {
   size_t compare_value;
   size_t exchange_value;
   do {
-    compare_value = (size_t)OrderAccess::load_acquire((julong*)dest);
+    compare_value = OrderAccess::load_ptr_acquire((intptr_t*)dest);
     assert(compare_value >= 1, "invariant");
     exchange_value = compare_value - 1;
-  } while (Atomic::cmpxchg(exchange_value, dest, compare_value) != compare_value);
+  } while ((unsigned long)Atomic::cmpxchg_ptr((intptr_t)exchange_value, (volatile intptr_t*)dest, (intptr_t)compare_value) != compare_value);
   return exchange_value;
 }
 
@@ -102,7 +102,7 @@ bool JfrStorageControl::should_discard() const {
 // concurrent with accuracy requirement
 
 size_t JfrStorageControl::global_lease_count() const {
-  return (size_t)OrderAccess::load_acquire((julong*)&_global_lease_count);
+  return (size_t)OrderAccess::load_ptr_acquire((intptr_t*)&_global_lease_count);
 }
 
 size_t JfrStorageControl::increment_leased() {

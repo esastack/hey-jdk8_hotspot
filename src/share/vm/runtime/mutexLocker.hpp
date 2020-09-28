@@ -143,7 +143,7 @@ extern Monitor* Service_lock;                    // a lock used for service thre
 extern Monitor* PeriodicTask_lock;               // protects the periodic task structure
 extern Monitor* RedefineClasses_lock;            // locks classes from parallel redefinition
 
-#ifdef INCLUDE_JFR
+#if INCLUDE_JFR
 extern Mutex*   JfrStacktrace_lock;              // used to guard access to the JFR stacktrace table
 extern Monitor* JfrMsg_lock;                     // protects JFR messaging
 extern Mutex*   JfrBuffer_lock;                  // protects JFR buffer operations
@@ -153,7 +153,9 @@ extern Mutex*   JfrThreadGroups_lock;            // protects JFR access to Threa
 #ifndef SUPPORTS_NATIVE_CX8
 extern Mutex*   JfrCounters_lock;                // provides atomic updates of JFR counters
 #endif
+
 #endif
+
 #ifndef SUPPORTS_NATIVE_CX8
 extern Mutex*   UnsafeJlong_lock;                // provides Unsafe atomic updates to jlongs on platforms that don't support cx8
 #endif

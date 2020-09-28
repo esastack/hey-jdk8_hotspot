@@ -30,7 +30,7 @@
 #include "jfr/utilities/jfrTypes.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/os.hpp"
-#include "jfr/utilities/jfrLog.hpp"
+#include "runtime/os.hpp"
 
 static const u2 JFR_VERSION_MAJOR = 2;
 static const u2 JFR_VERSION_MINOR = 0;
@@ -88,11 +88,11 @@ size_t JfrChunkWriter::close(int64_t metadata_offset) {
 void JfrChunkWriter::write_header(int64_t metadata_offset) {
   assert(this->is_valid(), "invariant");
   // Chunk size
-  this->write_be_at_offset(size_written(), CHUNK_SIZE_OFFSET);
+  this->write_be_at_offset((jlong)size_written(), CHUNK_SIZE_OFFSET);
   // initial checkpoint event offset
   this->write_be_at_offset(_chunkstate->previous_checkpoint_offset(), CHUNK_SIZE_OFFSET + (1 * FILEHEADER_SLOT_SIZE));
   // metadata event offset
-  this->write_be_at_offset(metadata_offset, CHUNK_SIZE_OFFSET + (2 * FILEHEADER_SLOT_SIZE));
+  this->write_be_at_offset((jlong)metadata_offset, CHUNK_SIZE_OFFSET + (2 * FILEHEADER_SLOT_SIZE));
   // start of chunk in nanos since epoch
   this->write_be_at_offset(_chunkstate->previous_start_nanos(), CHUNK_SIZE_OFFSET + (3 * FILEHEADER_SLOT_SIZE));
   // duration of chunk in nanos

@@ -26,7 +26,6 @@
 #define SHARE_VM_JFR_LEAKPROFILER_CHAINS_BFSCLOSURE_HPP
 
 #include "memory/iterator.hpp"
-#include "oops/oop.hpp"
 
 class BitSet;
 class Edge;
@@ -34,7 +33,7 @@ class EdgeStore;
 class EdgeQueue;
 
 // Class responsible for iterating the heap breadth-first
-class BFSClosure : public ExtendedOopClosure {
+class BFSClosure : public ExtendedOopClosure { // XXX BasicOopIterateClosure
  private:
   EdgeQueue* _edge_queue;
   EdgeStore* _edge_store;
@@ -65,6 +64,7 @@ class BFSClosure : public ExtendedOopClosure {
  public:
   BFSClosure(EdgeQueue* edge_queue, EdgeStore* edge_store, BitSet* mark_bits);
   void process();
+  void do_root(const oop* ref);
 
   virtual void do_oop(oop* ref);
   virtual void do_oop(narrowOop* ref);

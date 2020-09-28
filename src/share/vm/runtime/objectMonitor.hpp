@@ -55,9 +55,6 @@ class ObjectWaiter : public StackObj {
   void wait_reenter_end(ObjectMonitor *mon);
 };
 
-// forward declaration to avoid include tracing.hpp
-class EventJavaMonitorWait;
-
 // WARNING:
 //   This is a very sensitive and fragile class. DO NOT make any
 // change unless you are fully aware of the underlying semantics.

@@ -3912,7 +3912,6 @@ class CMSConcMarkingTerminatorTerminator: public TerminatorTerminator {
   }
 };
 
-
 // MT Concurrent Marking Task
 class CMSConcMarkingTask: public YieldingFlexibleGangTask {
   CMSCollector* _collector;

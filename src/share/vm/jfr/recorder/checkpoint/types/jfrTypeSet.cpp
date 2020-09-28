@@ -51,6 +51,7 @@ static u8 checkpoint_id = 0;
 // creates a unique id by combining a checkpoint relative symbol id (2^24)
 // with the current checkpoint id (2^40)
 #define CREATE_SYMBOL_ID(sym_id) (((u8)((checkpoint_id << 24) | sym_id)))
+#define CREATE_PACKAGE_ID(pkg_id) (((u8)((checkpoint_id << 24) | pkg_id)))
 
 typedef const Klass* KlassPtr;
 typedef const ClassLoaderData* CldPtr;
@@ -58,6 +59,24 @@ typedef const Method* MethodPtr;
 typedef const Symbol* SymbolPtr;
 typedef const JfrSymbolId::SymbolEntry* SymbolEntryPtr;
 typedef const JfrSymbolId::CStringEntry* CStringEntryPtr;
+
+inline uintptr_t package_name_hash(const char *s) {
+  uintptr_t val = 0;
+  while (*s != 0) {
+    val = *s++ + 31 * val;
+  }
+  return val;
+}
+
+static traceid package_id(KlassPtr klass, JfrArtifactSet* artifacts) {
+  assert(klass != NULL, "invariant");
+  char* klass_name = klass->name()->as_C_string(); // uses ResourceMark declared in JfrTypeSet::serialize()
+  const char* pkg_name = ClassLoader::package_from_name(klass_name, NULL);
+  if (pkg_name == NULL) {
+    return 0;
+  }
+  return CREATE_PACKAGE_ID(artifacts->markPackage(pkg_name, package_name_hash(pkg_name)));
+}
 
 static traceid cld_id(CldPtr cld) {
   assert(cld != NULL, "invariant");
@@ -107,11 +126,11 @@ int write__artifact__klass(JfrCheckpointWriter* writer, JfrArtifactSet* artifact
   traceid pkg_id = 0;
   KlassPtr theklass = klass;
   if (theklass->oop_is_objArray()) {
-    const ObjArrayKlass* obj_arr_klass = ObjArrayKlass::cast(klass);
+    const ObjArrayKlass* obj_arr_klass = ObjArrayKlass::cast((Klass*)klass);
     theklass = obj_arr_klass->bottom_klass();
   }
   if (theklass->oop_is_instance()) {
-    // TODO package number.
+    pkg_id = package_id(theklass, artifacts);
   } else {
     assert(theklass->oop_is_typeArray(), "invariant");
   }
@@ -155,21 +174,34 @@ int write__artifact__method(JfrCheckpointWriter* writer, JfrArtifactSet* artifac
 typedef JfrArtifactWriterImplHost<MethodPtr, write__artifact__method> MethodWriterImplTarget;
 typedef JfrArtifactWriterHost<MethodWriterImplTarget, TYPE_METHOD> MethodWriterImpl;
 
+int write__artifact__package(JfrCheckpointWriter* writer, JfrArtifactSet* artifacts, const void* p) {
+  assert(writer != NULL, "invariant");
+  assert(artifacts != NULL, "invariant");
+  assert(p != NULL, "invariant");
+
+  CStringEntryPtr entry = (CStringEntryPtr)p;
+  const traceid package_name_symbol_id = artifacts->mark(entry->value(), package_name_hash(entry->value()));
+  assert(package_name_symbol_id > 0, "invariant");
+  writer->write((traceid)CREATE_PACKAGE_ID(entry->id()));
+  writer->write((traceid)CREATE_SYMBOL_ID(package_name_symbol_id));
+  writer->write((bool)true); // exported
+  return 1;
+}
+
 int write__artifact__classloader(JfrCheckpointWriter* writer, JfrArtifactSet* artifacts, const void* c) {
   assert(c != NULL, "invariant");
   CldPtr cld = (CldPtr)c;
   assert(!cld->is_anonymous(), "invariant");
   const traceid cld_id = TRACE_ID(cld);
   // class loader type
-  const oop class_loader_oop = cld->class_loader();
-  if (class_loader_oop == NULL) {
+  const Klass* class_loader_klass = cld->class_loader() != NULL ? cld->class_loader()->klass() : NULL;
+  if (class_loader_klass == NULL) {
     // (primordial) boot class loader
     writer->write(cld_id); // class loader instance id
     writer->write((traceid)0);  // class loader type id (absence of)
     writer->write((traceid)CREATE_SYMBOL_ID(1)); // 1 maps to synthetic name -> "bootstrap"
   } else {
-    KlassPtr class_loader_klass = class_loader_oop->klass();
-    Symbol* symbol_name = class_loader_klass->name() ; // XXX TODO cld->name()
+    Symbol* symbol_name = class_loader_klass->name();
     const traceid symbol_name_id = symbol_name != NULL ? artifacts->mark(symbol_name) : 0;
     writer->write(cld_id); // class loader instance id
     writer->write(TRACE_ID(class_loader_klass)); // class loader type id
@@ -310,8 +342,8 @@ int KlassSymbolWriterImpl<Predicate>::class_loader_symbols(CldPtr cld) {
   assert(!cld->is_anonymous(), "invariant");
   int count = 0;
   // class loader type
-  const oop class_loader_oop = cld->class_loader();
-  if (class_loader_oop == NULL) {
+  const Klass* class_loader_klass = cld->class_loader() != NULL ? cld->class_loader()->klass() : NULL;
+  if (class_loader_klass == NULL) {
     // (primordial) boot class loader
     CStringEntryPtr entry = this->_artifacts->map_cstring(0);
     assert(entry != NULL, "invariant");
@@ -322,8 +354,7 @@ int KlassSymbolWriterImpl<Predicate>::class_loader_symbols(CldPtr cld) {
       count += write__artifact__cstring__entry__(this->_writer, entry);
     }
   } else {
-    // TODO Add class loader name.
-    const Symbol* class_loader_name = NULL;
+    const Symbol* class_loader_name = class_loader_klass->name()/* XXX TODO cld->name()*/;
     if (class_loader_name != NULL) {
       SymbolEntryPtr entry = this->_artifacts->map_symbol(class_loader_name);
       assert(entry != NULL, "invariant");
@@ -341,7 +372,7 @@ int KlassSymbolWriterImpl<Predicate>::method_symbols(KlassPtr klass) {
   assert(_method_used_predicate(klass), "invariant");
   assert(METHOD_AND_CLASS_USED_ANY_EPOCH(klass), "invariant");
   int count = 0;
-  const InstanceKlass* const ik = InstanceKlass::cast(klass);
+  const InstanceKlass* const ik = InstanceKlass::cast((Klass*)klass);
   const int len = ik->methods()->length();
   for (int i = 0; i < len; ++i) {
     MethodPtr method = ik->methods()->at(i);
@@ -376,7 +407,7 @@ class ClearKlassAndMethods {
                                             _method_used_predicate(class_unload) {}
   bool operator()(KlassPtr klass) {
     if (_method_used_predicate(klass)) {
-      const InstanceKlass* ik = InstanceKlass::cast(klass);
+      const InstanceKlass* ik = InstanceKlass::cast((Klass*)klass);
       const int len = ik->methods()->length();
       for (int i = 0; i < len; ++i) {
         MethodPtr method = ik->methods()->at(i);
@@ -436,6 +467,18 @@ void JfrTypeSet::write_klass_constants(JfrCheckpointWriter* writer, JfrCheckpoin
   CompositeKlassCallback callback(&ckwr);
   _subsystem_callback = &callback;
   do_klasses();
+}
+
+typedef JfrArtifactWriterImplHost<CStringEntryPtr, write__artifact__package> PackageEntryWriterImpl;
+typedef JfrArtifactWriterHost<PackageEntryWriterImpl, TYPE_PACKAGE> PackageEntryWriter;
+
+void JfrTypeSet::write_package_constants(JfrCheckpointWriter* writer, JfrCheckpointWriter* leakp_writer) {
+  assert(_artifacts->has_klass_entries(), "invariant");
+  assert(writer != NULL, "invariant");
+  // below jdk9 there is no oop for packages, so nothing to do with leakp_writer
+  // just write packages
+  PackageEntryWriter pw(writer, _artifacts, _class_unload);
+  _artifacts->iterate_packages(pw);
 }
 
 typedef CompositeFunctor<CldPtr, CldWriter, ClearArtifact<CldPtr> > CldWriterWithClear;
@@ -506,7 +549,7 @@ class MethodIteratorHost {
   bool operator()(KlassPtr klass) {
     if (_method_used_predicate(klass)) {
       assert(METHOD_AND_CLASS_USED_ANY_EPOCH(klass), "invariant");
-      const InstanceKlass* ik = InstanceKlass::cast(klass);
+      const InstanceKlass* ik = InstanceKlass::cast((Klass*)klass);
       const int len = ik->methods()->length();
       for (int i = 0; i < len; ++i) {
         MethodPtr method = ik->methods()->at(i);
@@ -687,6 +730,7 @@ void JfrTypeSet::serialize(JfrCheckpointWriter* writer, JfrCheckpointWriter* lea
   // might tag an artifact to be written in a subsequent step
   write_klass_constants(writer, leakp_writer);
   if (_artifacts->has_klass_entries()) {
+    write_package_constants(writer, leakp_writer);
     write_class_loader_constants(writer, leakp_writer);
     write_method_constants(writer, leakp_writer);
     write_symbol_constants(writer, leakp_writer);

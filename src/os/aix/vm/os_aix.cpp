@@ -1500,11 +1500,6 @@ void os::print_dll_info(outputStream *st) {
   LoadedLibraries::print(st);
 }
 
-int os::get_loaded_modules_info(os::LoadedModulesCallbackFunc callback, void *param) {
-  // Not yet implemented.
-  return 0;
-}
-
 void os::print_os_info(outputStream* st) {
   st->print("OS:");
 
@@ -1558,6 +1553,11 @@ void os::print_os_info(outputStream* st) {
   os::loadavg(loadavg, 3);
   st->print("%0.02f %0.02f %0.02f", loadavg[0], loadavg[1], loadavg[2]);
   st->cr();
+}
+
+int os::get_loaded_modules_info(os::LoadedModulesCallbackFunc callback, void *param) {
+  // Not yet implemented.
+  return 0;
 }
 
 void os::print_memory_info(outputStream* st) {
@@ -2796,6 +2796,10 @@ char* os::pd_attempt_reserve_memory_at(size_t bytes, char* requested_addr) {
 
 size_t os::read(int fd, void *buf, unsigned int nBytes) {
   return ::read(fd, buf, nBytes);
+}
+
+size_t os::read_at(int fd, void *buf, unsigned int nBytes, jlong offset) {
+  return ::pread(fd, buf, nBytes, offset);
 }
 
 #define NANOSECS_PER_MILLISEC 1000000

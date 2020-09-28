@@ -25,11 +25,13 @@
 #ifndef SHARE_VM_RUNTIME_OS_PERF_HPP
 #define SHARE_VM_RUNTIME_OS_PERF_HPP
 
-#include "memory/allocation.inline.hpp"
 #include "utilities/macros.hpp"
+#include "memory/allocation.inline.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 #define FUNCTIONALITY_NOT_IMPLEMENTED -8
 
+// XXX
 //class EnvironmentVariable : public CHeapObj<mtInternal> {
 // public:
 //  char* _key;
@@ -42,10 +44,10 @@
 //
 //  ~EnvironmentVariable() {
 //    if (_key != NULL) {
-//      FREE_C_HEAP_ARRAY(char, _key, mtInternal);
+//      FREE_C_HEAP_ARRAY(char, _key);
 //    }
 //    if (_value != NULL) {
-//      FREE_C_HEAP_ARRAY(char, _value, mtInternal);
+//      FREE_C_HEAP_ARRAY(char, _value);
 //    }
 //  }
 //

@@ -346,7 +346,6 @@ inline void process_free_list(Processor& processor, Mspace* mspace, jfr_iter_dir
 template <typename Mspace>
 inline bool ReleaseOp<Mspace>::process(typename Mspace::Type* t) {
   assert(t != NULL, "invariant");
-  assert(t->retired() || t->acquired_by_self(), "invariant");
   // assumes some means of exclusive access to t
   if (t->transient()) {
     if (_release_full) {
@@ -358,6 +357,7 @@ inline bool ReleaseOp<Mspace>::process(typename Mspace::Type* t) {
   }
   t->reinitialize();
   assert(t->empty(), "invariant");
+  assert(!t->retired(), "invariant");
   t->release(); // publish
   return true;
 }

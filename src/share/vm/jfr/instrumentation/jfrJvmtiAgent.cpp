@@ -30,7 +30,6 @@
 #include "jfr/recorder/checkpoint/types/traceid/jfrTraceId.inline.hpp"
 #include "jfr/recorder/service/jfrOptionSet.hpp"
 #include "jfr/support/jfrEventClass.hpp"
-#include "jfr/utilities/jfrLog.hpp"
 #include "memory/resourceArea.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "runtime/interfaceSupport.hpp"
@@ -45,7 +44,7 @@ static void check_jvmti_error(jvmtiEnv* jvmti, jvmtiError errnum, const char* st
   if (errnum != JVMTI_ERROR_NONE) {
     char* errnum_str = NULL;
     jvmti->GetErrorName(errnum, &errnum_str);
-    log_error(jfr, system)("ERROR: JfrJvmtiAgent: " INT32_FORMAT " (%s): %s\n",
+    if (true) tty->print_cr("ERROR: JfrJvmtiAgent: " INT32_FORMAT " (%s): %s\n",
                            errnum,
                            NULL == errnum_str ? "Unknown" : errnum_str,
                            NULL == str ? "" : str);
@@ -111,7 +110,7 @@ static jclass* create_classes_array(jint classes_count, TRAPS) {
     jio_snprintf(error_buffer, ERROR_MSG_BUFFER_SIZE,
       "Thread local allocation (native) of " SIZE_FORMAT " bytes failed "
       "in retransform classes", sizeof(jclass) * classes_count);
-    log_error(jfr, system)("%s", error_buffer);
+    if (true) tty->print_cr("%s", error_buffer);
     JfrJavaSupport::throw_out_of_memory_error(error_buffer, CHECK_NULL);
   }
   return classes;
@@ -121,7 +120,7 @@ static void log_and_throw(TRAPS) {
   if (!HAS_PENDING_EXCEPTION) {
     DEBUG_ONLY(JfrJavaSupport::check_java_thread_in_native(THREAD));
     ThreadInVMfromNative tvmfn((JavaThread*)THREAD);
-    log_error(jfr, system)("JfrJvmtiAgent::retransformClasses failed");
+    if (true) tty->print_cr("JfrJvmtiAgent::retransformClasses failed");
     JfrJavaSupport::throw_class_format_error("JfrJvmtiAgent::retransformClasses failed", THREAD);
   }
 }
@@ -132,7 +131,7 @@ static void check_exception_and_log(JNIEnv* env, TRAPS) {
     // array index out of bound
     DEBUG_ONLY(JfrJavaSupport::check_java_thread_in_native(THREAD));
     ThreadInVMfromNative tvmfn((JavaThread*)THREAD);
-    log_error(jfr, system)("GetObjectArrayElement threw an exception");
+    if (true) tty->print_cr("GetObjectArrayElement threw an exception");
     return;
   }
 }

@@ -35,9 +35,6 @@
 #include "gc_implementation/shared/gcTraceTime.hpp"
 #include "gc_implementation/shared/parGCAllocBuffer.inline.hpp"
 #include "gc_implementation/shared/spaceDecorator.hpp"
-#if INCLUDE_JFR
-#include "jfr/jfr.hpp"
-#endif
 #include "memory/defNewGeneration.inline.hpp"
 #include "memory/genCollectedHeap.hpp"
 #include "memory/genOopClosures.inline.hpp"
@@ -1028,7 +1025,7 @@ void ParNewGeneration::collect(bool   full,
                                               &evacuate_followers, NULL,
                                               _gc_timer, gc_tracer.gc_id());
   }
-  gc_tracer.report_gc_reference_stats(stats);   
+  gc_tracer.report_gc_reference_stats(stats);
   if (!promotion_failed()) {
     // Swap the survivor spaces.
     eden()->clear(SpaceDecorator::Mangle);
@@ -1096,6 +1093,7 @@ void ParNewGeneration::collect(bool   full,
 
   gch->trace_heap_after_gc(&gc_tracer);
   gc_tracer.report_tenuring_threshold(tenuring_threshold());
+
   _gc_timer->register_gc_end();
 
   gc_tracer.report_gc_end(_gc_timer->gc_end(), _gc_timer->time_partitions());

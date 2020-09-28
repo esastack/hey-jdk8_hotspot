@@ -27,6 +27,21 @@
 
 #include "memory/allocation.hpp"
 #include "utilities/macros.hpp"
+#ifdef TARGET_ARCH_x86
+# include "bytes_x86.hpp"
+#endif
+#ifdef TARGET_ARCH_sparc
+# include "bytes_sparc.hpp"
+#endif
+#ifdef TARGET_ARCH_zero
+# include "bytes_zero.hpp"
+#endif
+#ifdef TARGET_ARCH_arm
+# include "bytes_arm.hpp"
+#endif
+#ifdef TARGET_ARCH_ppc
+# include "bytes_ppc.hpp"
+#endif
 
 #ifndef VM_LITTLE_ENDIAN
 # define bigendian_16(x) (x)

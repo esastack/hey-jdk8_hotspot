@@ -87,8 +87,8 @@ ad_stuff: $(Cached_plat) $(adjust-mflags)
 jvmti_stuff: $(Cached_plat) $(adjust-mflags)
 	@$(MAKE) -f jvmti.make $(MFLAGS-adjusted)
 
-# generate trace -> jfr files 
-jfr_stuff: jvmti_stuff $(Cached_plat) $(adjust-mflags)
+# generate JFR files
+jfr_stuff:  $(Cached_plat) $(adjust-mflags)
 	@$(MAKE) -f jfr.make $(MFLAGS-adjusted)
 
 # generate SA jar files and native header

@@ -37,7 +37,7 @@
 #include "services/diagnosticArgument.hpp"
 #include "services/diagnosticFramework.hpp"
 #include "utilities/globalDefinitions.hpp"
-#include "jfr/utilities/jfrLog.hpp"
+
 #ifdef _WINDOWS
 #define JFR_FILENAME_EXAMPLE "C:\\Users\\user\\My Recording.jfr"
 #endif
@@ -404,7 +404,7 @@ void JfrStartFlightRecordingDCmd::execute(DCmdSource source, TRAPS) {
 
   jobject maxsize = NULL;
   if (_maxsize.is_set()) {
-    maxsize = JfrJavaSupport::new_java_lang_Long(_maxsize.value()._size, CHECK); 
+    maxsize = JfrJavaSupport::new_java_lang_Long(_maxsize.value()._size, CHECK);
   }
 
   jobject duration = NULL;
@@ -434,7 +434,13 @@ void JfrStartFlightRecordingDCmd::execute(DCmdSource source, TRAPS) {
 
   jobjectArray settings = NULL;
   if (_settings.is_set()) {
-    const int length = _settings.value()->array()->length();
+    int length = _settings.value()->array()->length();
+    if (length == 1) {
+      const char* c_str = _settings.value()->array()->at(0);
+      if (strcmp(c_str, "none") == 0) {
+        length = 0;
+      }
+    }
     settings = JfrJavaSupport::new_string_array(length, CHECK);
     assert(settings != NULL, "invariant");
     for (int i = 0; i < length; ++i) {
@@ -662,6 +668,8 @@ bool register_jfr_dcmds() {
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<JfrStartFlightRecordingDCmd>(full_export, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<JfrStopFlightRecordingDCmd>(full_export, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<JfrConfigureFlightRecorderDCmd>(full_export, true, false));
+
+  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<JfrUnlockCommercialFeaturesDCmd>(full_export, true, false));
   return true;
 }
 

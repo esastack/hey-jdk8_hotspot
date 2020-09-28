@@ -46,6 +46,9 @@
 #include "gc_implementation/parallelScavenge/psPromotionManager.hpp"
 #include "gc_implementation/parallelScavenge/psScavenge.hpp"
 #endif // INCLUDE_ALL_GCS
+#if INCLUDE_JFR
+#include "jfr/support/jfrTraceIdExtension.hpp"
+#endif
 
 bool Klass::is_cloneable() const {
   return _access_flags.is_cloneable() ||
@@ -523,8 +526,8 @@ void Klass::oops_do(OopClosure* cl) {
 
 void Klass::remove_unshareable_info() {
   assert (DumpSharedSpaces, "only called for DumpSharedSpaces");
-  JFR_ONLY(REMOVE_ID(this);)
 
+  JFR_ONLY(REMOVE_ID(this);)
   set_subklass(NULL);
   set_next_sibling(NULL);
   // Clear the java mirror
@@ -537,7 +540,6 @@ void Klass::remove_unshareable_info() {
 
 void Klass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, TRAPS) {
   JFR_ONLY(RESTORE_ID(this);)
-  
   // If an exception happened during CDS restore, some of these fields may already be
   // set.  We leave the class on the CLD list, even if incomplete so that we don't
   // modify the CLD list outside a safepoint.

@@ -34,10 +34,10 @@
 #include "runtime/os.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/ticks.hpp"
+
 #if INCLUDE_ALL_GCS
 #include "gc_implementation/g1/evacuationInfo.hpp"
 #endif
-#include "jfr/jfrEvents.hpp"
 
 #define assert_unset_gc_id() assert(_shared_gc_info.gc_id().is_undefined(), "GC already started?")
 #define assert_set_gc_id() assert(!_shared_gc_info.gc_id().is_undefined(), "GC not started?")
@@ -223,11 +223,10 @@ void OldGCTracer::report_concurrent_mode_failure() {
 }
 
 #if INCLUDE_ALL_GCS
-void G1MMUTracer::report_mmu(double time_slice_sec, double gc_time_sec, double max_time_sec, bool gc_thread) {
+void G1MMUTracer::report_mmu(double time_slice_sec, double gc_time_sec, double max_time_sec) {
   send_g1_mmu_event(time_slice_sec * MILLIUNITS,
                     gc_time_sec * MILLIUNITS,
-                    max_time_sec * MILLIUNITS,
-                    gc_thread);
+                    max_time_sec * MILLIUNITS);
 }
 
 void G1NewTracer::report_yc_type(G1YCType type) {

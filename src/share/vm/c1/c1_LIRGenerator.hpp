@@ -28,6 +28,7 @@
 #include "c1/c1_Instruction.hpp"
 #include "c1/c1_LIR.hpp"
 #include "ci/ciMethodData.hpp"
+#include "jfr/support/jfrIntrinsics.hpp"
 #include "utilities/sizes.hpp"
 
 // The classes responsible for code emission and register allocation
@@ -250,10 +251,6 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void do_FPIntrinsics(Intrinsic* x);
   void do_Reference_get(Intrinsic* x);
   void do_update_CRC32(Intrinsic* x);
-#ifdef JFR_HAVE_INTRINSICS
-  virtual void do_ClassIDIntrinsic(Intrinsic*      x);
-  virtual void do_getEventWriter  (Intrinsic*      x);
-#endif
 
   void do_UnsafePrefetch(UnsafePrefetch* x, bool is_store);
 
@@ -440,6 +437,10 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void do_SwitchRanges(SwitchRangeArray* x, LIR_Opr value, BlockBegin* default_sux);
 
   void do_RuntimeCall(address routine, int expected_arguments, Intrinsic* x);
+#ifdef JFR_HAVE_INTRINSICS
+  void do_ClassIDIntrinsic(Intrinsic* x);
+  void do_getEventWriter(Intrinsic* x);
+#endif
   ciKlass* profile_type(ciMethodData* md, int md_first_offset, int md_offset, intptr_t profiled_k,
                         Value arg, LIR_Opr& mdp, bool not_null, ciKlass* signature_at_call_k,
                         ciKlass* callee_signature_k);

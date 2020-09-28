@@ -24,6 +24,8 @@
 
 #include "precompiled.hpp"
 #include "gc_implementation/shared/ageTableTracer.hpp"
+#include "gc_implementation/shared/gcId.hpp"
+#include "gc_implementation/shared/gcTrace.hpp"
 #include "jfr/jfrEvents.hpp"
 
 void AgeTableTracer::send_tenuring_distribution_event(uint age, size_t size, GCTracer &tracer) {

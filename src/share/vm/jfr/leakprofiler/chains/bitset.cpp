@@ -52,7 +52,7 @@ bool BitSet::initialize() {
   if (map == NULL) {
     return false;
   }
-  _bits = BitMapView(map, bits);
+  _bits = BitMap(map, bits);
   return true;
 }
 

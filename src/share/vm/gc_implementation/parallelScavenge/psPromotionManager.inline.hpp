@@ -115,7 +115,7 @@ oop PSPromotionManager::copy_to_survivor_space(oop o) {
     // Find the objects age, MT safe.
     uint age = (test_mark->has_displaced_mark_helper() /* o->has_displaced_mark() */) ?
       test_mark->displaced_mark_helper()->age() : test_mark->age();
-    
+
     if (!promote_immediately) {
       // Try allocating obj in to-space (unless too old)
       if (age < PSScavenge::tenuring_threshold()) {

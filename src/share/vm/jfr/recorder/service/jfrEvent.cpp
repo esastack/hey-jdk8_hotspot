@@ -30,7 +30,7 @@
 #ifdef ASSERT
 JfrEventVerifier::JfrEventVerifier() : _committed(false) {
   memset(_verification_storage, 0, (sizeof(_verification_storage)));
-  _verification_bit_map = BitMapView(_verification_storage, (BitMap::idx_t)(sizeof(_verification_storage) * BitsPerByte));
+  _verification_bit_map = BitMap(_verification_storage, (BitMap::idx_t)(sizeof(_verification_storage) * BitsPerByte));
 }
 
 void JfrEventVerifier::check(BitMap::idx_t field_idx) const {

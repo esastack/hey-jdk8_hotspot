@@ -60,7 +60,7 @@ OPENJDK=true
 JvmtiOutDir=$(HOTSPOTBUILDSPACE)\$(Variant)\generated\jvmtifiles
 !include $(HOTSPOTWORKSPACE)/make/windows/makefiles/jvmti.make
 
-# Pick up rules for building jfr
+# Pick up rules for building trace
 JfrOutDir=$(HOTSPOTBUILDSPACE)\$(Variant)\generated\jfrfiles
 !include $(HOTSPOTWORKSPACE)/make/windows/makefiles/jfr.make
 

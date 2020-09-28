@@ -82,7 +82,7 @@ class ClassFileParser VALUE_OBJ_CLASS_SPEC {
   Array<AnnotationArray*>* _fields_annotations;
   Array<AnnotationArray*>* _fields_type_annotations;
   InstanceKlass*   _klass;  // InstanceKlass once created.
-  
+
   void set_class_synthetic_flag(bool x)        { _synthetic_flag = x; }
   void set_class_sourcefile_index(u2 x)        { _sourcefile_index = x; }
   void set_class_generic_signature_index(u2 x) { _generic_signature_index = x; }
@@ -91,7 +91,6 @@ class ClassFileParser VALUE_OBJ_CLASS_SPEC {
   void create_combined_annotations(TRAPS);
 
   void init_parsed_class_attributes(ClassLoaderData* loader_data) {
-    _this_class_index = 0;
     _loader_data = loader_data;
     _synthetic_flag = false;
     _sourcefile_index = 0;
@@ -493,10 +492,13 @@ PRAGMA_DIAG_POP
   static void check_super_interface_access(instanceKlassHandle this_klass, TRAPS);
   static void check_final_method_override(instanceKlassHandle this_klass, TRAPS);
   static void check_illegal_static_method(instanceKlassHandle this_klass, TRAPS);
-  
+
   u2 this_class_index() const { return _this_class_index; }
-  const ClassFileStream* clone_stream() const;
+
+#if INCLUDE_JFR
+  ClassFileStream* clone_stream() const;
   void set_klass_to_deallocate(InstanceKlass* klass);
+#endif // INCLUDE_JFR
 };
 
 #endif // SHARE_VM_CLASSFILE_CLASSFILEPARSER_HPP

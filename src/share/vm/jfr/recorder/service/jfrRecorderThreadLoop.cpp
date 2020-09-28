@@ -27,7 +27,6 @@
 #include "jfr/recorder/service/jfrPostBox.hpp"
 #include "jfr/recorder/service/jfrRecorderService.hpp"
 #include "jfr/recorder/service/jfrRecorderThread.hpp"
-#include "jfr/utilities/jfrLog.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/thread.inline.hpp"
 
@@ -44,7 +43,7 @@ void recorderthread_entry(JavaThread* thread, Thread* unused) {
   #define SCAVENGE (msgs & (MSGBIT(MSG_DEADBUFFER)))
 
   JfrPostBox& post_box = JfrRecorderThread::post_box();
-  log_debug(jfr, system)("Recorder thread STARTED");
+  if (LogJFR) tty->print_cr("Recorder thread STARTED");
 
   {
     bool done = false;
@@ -76,7 +75,7 @@ void recorderthread_entry(JavaThread* thread, Thread* unused) {
       JfrMsg_lock->lock();
       post_box.notify_waiters();
       if (SHUTDOWN) {
-        log_debug(jfr, system)("Request to STOP recorder");
+        if (LogJFR) tty->print_cr("Request to STOP recorder");
         done = true;
       }
     } // JFR MESSAGE LOOP PROCESSING - END

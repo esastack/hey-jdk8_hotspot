@@ -34,17 +34,15 @@
 class KlassInfoEntry;
 
 class ObjectCountEventSender : public AllStatic {
-
-  // Record request status for jfr event
   static bool _should_send_requestable_event;
 
   template <typename T>
   static void send_event_if_enabled(Klass* klass, GCId gc_id, jlong count, julong size, const Ticks& timestamp);
+
  public:
   static void enable_requestable_event();
   static void disable_requestable_event();
 
- public:
   static void send(const KlassInfoEntry* entry, GCId gc_id, const Ticks& timestamp);
   static bool should_send_event();
 };

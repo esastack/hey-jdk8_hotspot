@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,9 @@
 #include "os_solaris.inline.hpp"
 #include "utilities/macros.hpp"
 
+#ifdef TARGET_ARCH_aarch32
+# include "vm_version_ext_aarch32.hpp"
+#endif
 #ifdef TARGET_ARCH_x86
 # include "vm_version_ext_x86.hpp"
 #endif
@@ -40,7 +43,6 @@
 # include "vm_version_ext_zero.hpp"
 #endif
 #ifdef TARGET_ARCH_arm
-// Not supported.
 # include "vm_version_ext_arm.hpp"
 #endif
 #ifdef TARGET_ARCH_ppc
@@ -89,7 +91,7 @@ static int get_info(const char* path, void* info, size_t s, off_t o) {
 
   int fd = -1;
 
-  if ((fd = os::open(path, O_RDONLY, 0)) < 0) {
+  if ((fd = open(path, O_RDONLY)) < 0) {
     return OS_ERR;
   }
   if (pread(fd, info, s, o) != s) {
@@ -458,19 +460,19 @@ CPUPerformanceInterface::~CPUPerformanceInterface(void) {
   }
 }
 
-int CPUPerformanceInterface::cpu_load(int which_logical_cpu, double* cpu_load) const {
+int CPUPerformanceInterface::cpu_load(int which_logical_cpu, double* const cpu_load) const {
   return _impl->cpu_load(which_logical_cpu, cpu_load);
 }
 
-int CPUPerformanceInterface::cpu_load_total_process(double* cpu_load) const {
+int CPUPerformanceInterface::cpu_load_total_process(double* const cpu_load) const {
   return _impl->cpu_load_total_process(cpu_load);
 }
 
-int CPUPerformanceInterface::cpu_loads_process(double* pjvmUserLoad, double* pjvmKernelLoad, double* psystemTotalLoad) const {
+int CPUPerformanceInterface::cpu_loads_process(double* const pjvmUserLoad, double* const pjvmKernelLoad, double* const psystemTotalLoad) const {
   return _impl->cpu_loads_process(pjvmUserLoad, pjvmKernelLoad, psystemTotalLoad);
 }
 
-int CPUPerformanceInterface::context_switch_rate(double* rate) const {
+int CPUPerformanceInterface::context_switch_rate(double* const rate) const {
   return _impl->context_switch_rate(rate);
 }
 
@@ -700,7 +702,7 @@ int SystemProcessInterface::SystemProcesses::system_processes(SystemProcess** sy
   return OS_OK;
 }
 
-int SystemProcessInterface::system_processes(SystemProcess** system_procs, int* no_of_sys_processes) const {
+int SystemProcessInterface::system_processes(SystemProcess** system_procs, int* const no_of_sys_processes) const {
   return _impl->system_processes(system_procs, no_of_sys_processes);
 }
 

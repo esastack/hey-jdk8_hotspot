@@ -28,6 +28,7 @@
 #if INCLUDE_ALL_GCS
 #include "gc_implementation/g1/g1SATBCardTableModRefBS.hpp"
 #endif // INCLUDE_ALL_GCS
+#include "jfr/jfrEvents.hpp"
 #include "memory/allocation.inline.hpp"
 #include "prims/jni.h"
 #include "prims/jvm.h"
@@ -38,7 +39,6 @@
 #include "runtime/reflection.hpp"
 #include "runtime/synchronizer.hpp"
 #include "services/threadService.hpp"
-#include "jfr/jfrEvents.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/dtrace.hpp"
 
@@ -1245,7 +1245,7 @@ static void post_thread_park_event(EventThreadPark* event, const oop obj, jlong 
   event->set_address((obj != NULL) ? (u8)cast_from_oop<uintptr_t>(obj) : 0);
   event->commit();
 }
-          
+
 UNSAFE_ENTRY(void, Unsafe_Park(JNIEnv *env, jobject unsafe, jboolean isAbsolute, jlong time))
   UnsafeWrapper("Unsafe_Park");
   EventThreadPark event;
@@ -1263,7 +1263,6 @@ UNSAFE_ENTRY(void, Unsafe_Park(JNIEnv *env, jobject unsafe, jboolean isAbsolute,
   HOTSPOT_THREAD_PARK_END(
                           (uintptr_t) thread->parker());
 #endif /* USDT2 */
-
   if (event.should_commit()) {
     const oop obj = thread->current_park_blocker();
     if (time == 0) {
@@ -1276,7 +1275,6 @@ UNSAFE_ENTRY(void, Unsafe_Park(JNIEnv *env, jobject unsafe, jboolean isAbsolute,
       }
     }
   }
-
 UNSAFE_END
 
 UNSAFE_ENTRY(void, Unsafe_Unpark(JNIEnv *env, jobject unsafe, jobject jthread))

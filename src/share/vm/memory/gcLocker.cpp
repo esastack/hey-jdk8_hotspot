@@ -77,7 +77,6 @@ bool GC_locker::check_active_before_gc() {
   return is_active();
 }
 
-
 void GC_locker::stall_until_clear() {
   assert(!JavaThread::current()->in_critical(), "Would deadlock");
   MutexLocker   ml(JNICritical_lock);

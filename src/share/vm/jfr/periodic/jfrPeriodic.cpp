@@ -42,7 +42,6 @@
 #include "jfr/support/jfrThreadId.hpp"
 #include "jfr/utilities/jfrTime.hpp"
 #include "jfrfiles/jfrPeriodic.hpp"
-#include "jfr/utilities/jfrLog.hpp"
 #include "memory/heapInspection.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/oop.inline.hpp"
@@ -128,7 +127,7 @@ TRACE_REQUEST_FUNC(CPUInformation) {
   CPUInformation cpu_info;
   int ret_val = JfrOSInterface::cpu_information(cpu_info);
   if (ret_val == OS_ERR) {
-    log_debug(jfr, system)( "Unable to generate requestable event CPUInformation");
+    if (LogJFR) tty->print_cr( "Unable to generate requestable event CPUInformation");
     return;
   }
   if (ret_val == FUNCTIONALITY_NOT_IMPLEMENTED) {
@@ -151,7 +150,7 @@ TRACE_REQUEST_FUNC(CPULoad) {
   double t = 0; // total time
   int ret_val = JfrOSInterface::cpu_loads_process(&u, &s, &t);
   if (ret_val == OS_ERR) {
-    log_debug(jfr, system)( "Unable to generate requestable event CPULoad");
+    if (LogJFR) tty->print_cr( "Unable to generate requestable event CPULoad");
     return;
   }
   if (ret_val == OS_OK) {
@@ -187,7 +186,7 @@ TRACE_REQUEST_FUNC(SystemProcess) {
   JfrTicks start_time = JfrTicks::now();
   int ret_val = JfrOSInterface::system_processes(&processes, &num_of_processes);
   if (ret_val == OS_ERR) {
-    log_debug(jfr, system)( "Unable to generate requestable event SystemProcesses");
+    if (LogJFR) tty->print_cr( "Unable to generate requestable event SystemProcesses");
     return;
   }
   JfrTicks end_time = JfrTicks::now();
@@ -225,7 +224,7 @@ TRACE_REQUEST_FUNC(ThreadContextSwitchRate) {
   double rate = 0.0;
   int ret_val = JfrOSInterface::context_switch_rate(&rate);
   if (ret_val == OS_ERR) {
-    log_debug(jfr, system)( "Unable to generate requestable event ThreadContextSwitchRate");
+    if (LogJFR) tty->print_cr( "Unable to generate requestable event ThreadContextSwitchRate");
     return;
   }
   if (ret_val == FUNCTIONALITY_NOT_IMPLEMENTED) {
@@ -240,7 +239,7 @@ TRACE_REQUEST_FUNC(ThreadContextSwitchRate) {
 
 #define SEND_FLAGS_OF_TYPE(eventType, flagType)                   \
   do {                                                            \
-    Flag *flag = Flag::flags;                               \
+    Flag *flag = Flag::flags;                                     \
     while (flag->_name != NULL) {                                 \
       if (flag->is_ ## flagType()) {                              \
         if (flag->is_unlocked()) {                                \
@@ -256,11 +255,11 @@ TRACE_REQUEST_FUNC(ThreadContextSwitchRate) {
   } while (0)
 
 TRACE_REQUEST_FUNC(IntFlag) {
-  SEND_FLAGS_OF_TYPE(IntFlag, int);
+  SEND_FLAGS_OF_TYPE(IntFlag, intx);
 }
 
 TRACE_REQUEST_FUNC(UnsignedIntFlag) {
-  SEND_FLAGS_OF_TYPE(UnsignedIntFlag, uint);
+  SEND_FLAGS_OF_TYPE(UnsignedIntFlag, uintx);
 }
 
 TRACE_REQUEST_FUNC(LongFlag) {
@@ -270,7 +269,6 @@ TRACE_REQUEST_FUNC(LongFlag) {
 TRACE_REQUEST_FUNC(UnsignedLongFlag) {
   SEND_FLAGS_OF_TYPE(UnsignedLongFlag, uintx);
   SEND_FLAGS_OF_TYPE(UnsignedLongFlag, uint64_t);
-  SEND_FLAGS_OF_TYPE(UnsignedLongFlag, size_t);
 }
 
 TRACE_REQUEST_FUNC(DoubleFlag) {
@@ -307,7 +305,7 @@ class VM_G1SendHeapRegionInfoEvents : public VM_Operation {
   virtual VMOp_Type type() const { return VMOp_HeapIterateOperation; }
 };
 
-TRACE_REQUEST_FUNC(G1HeapRegionInformation) {                                                                                          
+TRACE_REQUEST_FUNC(G1HeapRegionInformation) {
   if (UseG1GC) {
     VM_G1SendHeapRegionInfoEvents op;
     VMThread::execute(&op);
@@ -378,7 +376,7 @@ TRACE_REQUEST_FUNC(InitialSystemProperty) {
   SystemProperty* p = Arguments::system_properties();
   JfrTicks time_stamp = JfrTicks::now();
   while (p !=  NULL) {
-    if (true /*!p->internal()*/) {
+    if (true/* XXX fix me if you want !p->internal()*/) {
       EventInitialSystemProperty event(UNTIMED);
       event.set_key(p->key());
       event.set_value(p->value());
@@ -398,11 +396,9 @@ TRACE_REQUEST_FUNC(ThreadAllocationStatistics) {
   {
     // Collect allocation statistics while holding threads lock
     MutexLockerEx ml(Threads_lock);
-    JavaThread *jt = Threads::first();
-    while (jt) {
-      allocated.append(jt->cooked_allocated_bytes());
-      thread_ids.append(JFR_THREAD_ID(jt));
-      jt = jt->next();
+    for (JavaThread *thread = Threads::first(); thread != NULL; thread = thread->next()) {
+      allocated.append(thread->cooked_allocated_bytes());
+      thread_ids.append(JFR_THREAD_ID(thread));
     }
   }
 
@@ -520,10 +516,8 @@ TRACE_REQUEST_FUNC(CompilerConfiguration) {
 }
 
 TRACE_REQUEST_FUNC(CodeCacheStatistics) {
-  // Emit stats for all available code heaps
-  // Only one.
   EventCodeCacheStatistics event;
-  event.set_codeBlobType((u1)CodeBlobType::All);
+  event.set_codeBlobType((u1)0/*bt*/); // XXX
   event.set_startAddress((u8)CodeCache::low_bound());
   event.set_reservedTopAddress((u8)CodeCache::high_bound());
   event.set_entryCount(CodeCache::nof_blobs());
@@ -538,9 +532,9 @@ TRACE_REQUEST_FUNC(CodeCacheConfiguration) {
   EventCodeCacheConfiguration event;
   event.set_initialSize(InitialCodeCacheSize);
   event.set_reservedSize(ReservedCodeCacheSize);
-  event.set_nonNMethodSize(0 /*NonNMethodCodeHeapSize*/);
-  event.set_profiledSize(0 /*ProfiledCodeHeapSize*/);
-  event.set_nonProfiledSize(0 /*NonProfiledCodeHeapSize*/);
+  event.set_nonNMethodSize(0/*NonNMethodCodeHeapSize*/); // XXX
+  event.set_profiledSize(0/*ProfiledCodeHeapSize*/); // XXX
+  event.set_nonProfiledSize(0/*NonProfiledCodeHeapSize*/); // XXX
   event.set_expansionSize(CodeCacheExpansionSize);
   event.set_minBlockLength(CodeCacheMinBlockLength);
   event.set_startAddress((u8)CodeCache::low_bound());

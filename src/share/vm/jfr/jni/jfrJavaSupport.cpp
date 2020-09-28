@@ -31,7 +31,6 @@
 #include "jfr/jni/jfrJavaCall.hpp"
 #include "jfr/jni/jfrJavaSupport.hpp"
 #include "jfr/support/jfrThreadId.hpp"
-#include "jfr/utilities/jfrLog.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/instanceOop.hpp"
 #include "oops/oop.inline.hpp"
@@ -43,6 +42,7 @@
 #include "runtime/jniHandles.hpp"
 #include "runtime/synchronizer.hpp"
 #include "runtime/thread.inline.hpp"
+//#include "runtime/threadSMR.hpp"
 
 #ifdef ASSERT
 void JfrJavaSupport::check_java_thread_in_vm(Thread* t) {
@@ -87,7 +87,7 @@ jobject JfrJavaSupport::global_jni_handle(const jobject handle, Thread* t) {
   return obj == NULL ? NULL : global_jni_handle(obj, t);
 }
 
-void JfrJavaSupport::destroy_global_jni_handle(jobject handle) {
+void JfrJavaSupport::destroy_global_jni_handle(const jobject handle) {
   JNIHandles::destroy_global(handle);
 }
 
@@ -166,7 +166,7 @@ static void create_object(JfrJavaArguments* args, JavaValue* result, TRAPS) {
 
   const int array_length = args->array_length();
 
-  if (array_length > 0) {
+  if (array_length >= 0) {
     array_construction(args, result, klass, array_length, CHECK);
   } else {
     object_construction(args, result, klass, THREAD);
@@ -521,9 +521,9 @@ void JfrJavaSupport::abort(jstring errorMsg, Thread* t) {
   ResourceMark rm(t);
   const char* const error_msg = c_str(errorMsg, t);
   if (error_msg != NULL) {
-    log_error(jfr, system)("%s",error_msg);
+    if (true) tty->print_cr("%s",error_msg);
   }
-  log_error(jfr, system)("%s", "An irrecoverable error in Jfr. Shutting down VM...");
+  if (true) tty->print_cr("%s", "An irrecoverable error in Jfr. Shutting down VM...");
   vm_abort();
 }
 
@@ -570,9 +570,10 @@ JfrJavaSupport::CAUSE JfrJavaSupport::cause() {
   return _cause;
 }
 
-
 jlong JfrJavaSupport::jfr_thread_id(jobject target_thread) {
-  oop java_thread = JNIHandles::resolve_non_null(target_thread);
-  JavaThread* native_thread = java_lang_Thread::thread(java_thread);
+//  ThreadsListHandle tlh;
+  // XXX is it correct and safe?
+  JavaThread* native_thread = java_lang_Thread::thread(JNIHandles::resolve_non_null(target_thread));
+//  (void)tlh.cv_internal_thread_to_JavaThread(target_thread, &native_thread, NULL);
   return native_thread != NULL ? JFR_THREAD_ID(native_thread) : 0;
 }

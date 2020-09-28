@@ -31,7 +31,6 @@
 #include "jfr/recorder/stacktrace/jfrStackTraceRepository.hpp"
 #include "jfr/support/jfrThreadId.hpp"
 #include "jfr/utilities/jfrTime.hpp"
-#include "jfr/utilities/jfrLog.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/os.hpp"
 #include "runtime/semaphore.hpp"
@@ -158,7 +157,7 @@ void OSThreadSampler::do_task(const os::SuspendedThreadTaskContext& context) {
     OSThreadSamplerCallback cb(*this, context);
     os::ThreadCrashProtection crash_protection;
     if (!crash_protection.call(cb)) {
-      log_error(jfr)("Thread method sampler crashed");
+      if (true) tty->print_cr("Thread method sampler crashed");
     }
   } else {
     protected_task(context);
@@ -215,7 +214,7 @@ class JfrNativeSamplerCallback : public os::CrashProtectionCallback {
 
 static void write_native_event(JfrThreadSampleClosure& closure, JavaThread* jt) {
   EventNativeMethodSample *ev = closure.next_event_native();
-  ev->set_starttime(JfrTicks::now()); // Same to end time Type.
+  ev->set_starttime(JfrTicks::now());
   ev->set_sampledThread(JFR_THREAD_ID(jt));
   ev->set_state(java_lang_Thread::get_thread_status(jt->threadObj()));
 }
@@ -266,7 +265,7 @@ bool JfrThreadSampleClosure::sample_thread_in_native(JavaThread* thread, JfrStac
   if (JfrOptionSet::sample_protection()) {
     os::ThreadCrashProtection crash_protection;
     if (!crash_protection.call(cb)) {
-      log_error(jfr)("Thread method sampler crashed for native");
+      if (true) tty->print_cr("Thread method sampler crashed for native");
     }
   } else {
     cb.call();
@@ -286,13 +285,13 @@ static const uint MAX_NR_OF_NATIVE_SAMPLES = 1;
 
 void JfrThreadSampleClosure::commit_events(JfrSampleType type) {
   if (JAVA_SAMPLE == type) {
-    assert(_added_java > 0 && _added_java <= MAX_NR_OF_JAVA_SAMPLES, "invariant");
+    assert(_added_java <= MAX_NR_OF_JAVA_SAMPLES, "invariant");
     for (uint i = 0; i < _added_java; ++i) {
       _events[i].commit();
     }
   } else {
     assert(NATIVE_SAMPLE == type, "invariant");
-    assert(_added_native > 0 && _added_native <= MAX_NR_OF_NATIVE_SAMPLES, "invariant");
+    assert(_added_native <= MAX_NR_OF_NATIVE_SAMPLES, "invariant");
     for (uint i = 0; i < _added_native; ++i) {
       _events_native[i].commit();
     }
@@ -422,10 +421,7 @@ int JfrThreadSampler::find_index_of_JavaThread(JavaThread** t_list, uint length,
 }
 
 JavaThread* JfrThreadSampler::next_thread(JavaThread** t_list, uint length, JavaThread* first_sampled, JavaThread* current) {
-  assert(t_list != NULL, "invariant");
   assert(Threads_lock->owned_by_self(), "Holding the thread table lock.");
-  assert(_cur_index >= -1 && (uint)_cur_index + 1 <= length, "invariant");
-
   if (current == NULL) {
     _cur_index = 0;
     return t_list[_cur_index];
@@ -436,28 +432,33 @@ JavaThread* JfrThreadSampler::next_thread(JavaThread** t_list, uint length, Java
     _cur_index = find_index_of_JavaThread(t_list, length, current);
     assert(_cur_index != -1, "current JavaThread should be findable.");
   }
-  
-  if ((uint)_cur_index + 1 >= length) {
-    // wrap
+  _cur_index++;
+
+  JavaThread* next = NULL;
+  // wrap
+  if ((uint)_cur_index >= length) {
     _cur_index = 0;
-  } else {
-    _cur_index++;
   }
-  JavaThread* next = t_list[_cur_index];
-  return next != first_sampled ? next : NULL;
+  next = t_list[_cur_index];
+
+  // sample wrap
+  if (next == first_sampled) {
+    return NULL;
+  }
+  return next;
 }
 
 void JfrThreadSampler::start_thread() {
   if (os::create_thread(this, os::os_thread)) {
     os::start_thread(this);
   } else {
-    log_error(jfr)("Failed to create thread for thread sampling");
+    tty->print_cr("Failed to create thread for thread sampling");
   }
 }
 
 void JfrThreadSampler::enroll() {
   if (_disenrolled) {
-    log_info(jfr)("Enrolling thread sampler");
+    if (LogJFR) tty->print_cr("Enrolling thread sampler");
     _sample.signal();
     _disenrolled = false;
   }
@@ -467,7 +468,7 @@ void JfrThreadSampler::disenroll() {
   if (!_disenrolled) {
     _sample.wait();
     _disenrolled = true;
-    log_info(jfr)("Disenrolling thread sampler");
+    if (LogJFR) tty->print_cr("Disenrolling thread sampler");
   }
 }
 
@@ -480,7 +481,7 @@ void JfrThreadSampler::run() {
 
   initialize_thread_local_storage();
   record_stack_base_and_size();
-  
+
   _sampler_thread = this;
 
   jlong last_java_ms = get_monotonic_ms();
@@ -493,8 +494,8 @@ void JfrThreadSampler::run() {
       last_native_ms = last_java_ms;
     }
     _sample.signal();
-    jlong java_interval = _interval_java == 0 ? max_jlong : MAX2<jlong>(_interval_java, 10);
-    jlong native_interval = _interval_native == 0 ? max_jlong : MAX2<jlong>(_interval_native, 10);
+    jlong java_interval = _interval_java == 0 ? max_jlong : MAX2<jlong>(_interval_java, 1);
+    jlong native_interval = _interval_native == 0 ? max_jlong : MAX2<jlong>(_interval_native, 1);
 
     jlong now_ms = get_monotonic_ms();
 
@@ -536,7 +537,7 @@ void JfrThreadSampler::task_stacktrace(JfrSampleType type, JavaThread** last_thr
   JfrThreadSampleClosure sample_task(samples, samples_native);
 
   const uint sample_limit = JAVA_SAMPLE == type ? MAX_NR_OF_JAVA_SAMPLES : MAX_NR_OF_NATIVE_SAMPLES;
-  uint num_samples = 0;
+  uint num_sample_attempts = 0;
   JavaThread* start = NULL;
 
   {
@@ -547,14 +548,14 @@ void JfrThreadSampler::task_stacktrace(JfrSampleType type, JavaThread** last_thr
       int max_threads = Threads::number_of_threads();
       assert(max_threads >= 0, "Threads list is empty");
       uint index = 0;
-      
       JavaThread** threads_list = NEW_C_HEAP_ARRAY(JavaThread *, max_threads, mtInternal);
       for (JavaThread* tp = Threads::first(); tp != NULL; tp = tp->next()) {
         threads_list[index++] = tp;
       }
       JavaThread* current = Threads::includes(*last_thread) ? *last_thread : NULL;
+      JavaThread* start = NULL;
 
-      while (num_samples < sample_limit) {
+      while (num_sample_attempts < sample_limit) {
         current = next_thread(threads_list, index, start, current);
         if (current == NULL) {
           break;
@@ -565,19 +566,17 @@ void JfrThreadSampler::task_stacktrace(JfrSampleType type, JavaThread** last_thr
         if (current->is_Compiler_thread()) {
           continue;
         }
-        if (sample_task.do_sample_thread(current, _frames, _max_frames, type)) {
-          num_samples++;
-        }
+        sample_task.do_sample_thread(current, _frames, _max_frames, type);
+        num_sample_attempts++;
       }
       *last_thread = current;  // remember the thread we last attempted to sample
-      
       FREE_C_HEAP_ARRAY(JavaThread *, threads_list, mtInternal);
     }
     sample_time.stop();
-    log_trace(jfr)("JFR thread sampling done in %3.7f secs with %d java %d native samples",
+    if (LogJFR && Verbose) tty->print_cr("JFR thread sampling done in %3.7f secs with %d java %d native samples",
                    sample_time.seconds(), sample_task.java_entries(), sample_task.native_entries());
   }
-  if (num_samples > 0) {
+  if (num_sample_attempts > 0) {
     sample_task.commit_events(type);
   }
 }
@@ -610,12 +609,12 @@ JfrThreadSampling::~JfrThreadSampling() {
 }
 
 static void log(size_t interval_java, size_t interval_native) {
-  log_info(jfr)("Updated thread sampler for java: " SIZE_FORMAT "  ms, native " SIZE_FORMAT " ms", interval_java, interval_native);
+  if (LogJFR) tty->print_cr("Updated thread sampler for java: " SIZE_FORMAT "  ms, native " SIZE_FORMAT " ms", interval_java, interval_native);
 }
 
 void JfrThreadSampling::start_sampler(size_t interval_java, size_t interval_native) {
   assert(_sampler == NULL, "invariant");
-  log_info(jfr)("Enrolling thread sampler");
+  if (LogJFR) tty->print_cr("Enrolling thread sampler");
   _sampler = new JfrThreadSampler(interval_java, interval_native, JfrOptionSet::stackdepth());
   _sampler->start_thread();
   _sampler->enroll();
@@ -635,7 +634,7 @@ void JfrThreadSampling::set_sampling_interval(bool java_interval, size_t period)
   }
   if (interval_java > 0 || interval_native > 0) {
     if (_sampler == NULL) {
-      log_info(jfr)("Creating thread sampler for java:%zu ms, native %zu ms", interval_java, interval_native);
+      if (LogJFR) tty->print_cr("Creating thread sampler for java:%zu ms, native %zu ms", interval_java, interval_native);
       start_sampler(interval_java, interval_native);
     } else {
       _sampler->set_java_interval(interval_java);

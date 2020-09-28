@@ -38,7 +38,9 @@
 #include "utilities/accessFlags.hpp"
 #include "utilities/bitMap.inline.hpp"
 #include "utilities/macros.hpp"
+#if INCLUDE_JFR
 #include "jfr/support/jfrKlassExtension.hpp"
+#endif
 
 // An InstanceKlass is the VM level representation of a Java class.
 // It contains all information needed for at class at execution runtime.
@@ -906,12 +908,12 @@ class InstanceKlass: public Klass {
   bool super_types_do(SuperTypeClosure* blk);
 
   // Casting from Klass*
-  static InstanceKlass* cast(const Klass* k) {
+  static InstanceKlass* cast(Klass* k) {
     assert(k == NULL || k->is_klass(), "must be");
     assert(k == NULL || k->oop_is_instance(), "cast to InstanceKlass");
     return (InstanceKlass*) k;
   }
-  
+
   InstanceKlass* java_super() const {
     return (super() == NULL) ? NULL : cast(super());
   }

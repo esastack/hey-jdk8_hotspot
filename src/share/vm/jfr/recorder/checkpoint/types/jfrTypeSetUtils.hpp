@@ -32,8 +32,9 @@
 #include "oops/method.hpp"
 #include "utilities/growableArray.hpp"
 
+// XXX is it correct?
 // external name (synthetic) for the primordial "bootstrap" class loader instance
-#define BOOTSTRAP_LOADER_NAME "bootstrap"
+#define BOOTSTRAP_LOADER_NAME "<bootloader>" // XXX bootstrap
 #define BOOTSTRAP_LOADER_NAME_LEN 9
 
 // Composite callback/functor building block
@@ -229,9 +230,10 @@ class JfrSymbolId : public JfrCHeapObj {
   typedef SymbolTable::HashEntry SymbolEntry;
   typedef CStringTable::HashEntry CStringEntry;
  private:
+  traceid _symbol_id_counter;
   SymbolTable* _sym_table;
   CStringTable* _cstring_table;
-  traceid _symbol_id_counter;
+  CStringTable* _pkg_table;
 
   // hashtable(s) callbacks
   void assign_id(SymbolEntry* entry);
@@ -256,6 +258,12 @@ class JfrSymbolId : public JfrCHeapObj {
   traceid mark(const Klass* k);
   traceid mark(const Symbol* symbol);
   traceid mark(const char* str, uintptr_t hash);
+  traceid markPackage(const char* name, uintptr_t hash);
+
+  template <typename T>
+  void iterate_packages(T& functor) {
+    _pkg_table->iterate_entry(functor);
+  }
 
   const SymbolEntry* map_symbol(const Symbol* symbol) const;
   const SymbolEntry* map_symbol(uintptr_t hash) const;
@@ -333,6 +341,8 @@ class JfrArtifactSet : public JfrCHeapObj {
   traceid mark(const char* const str, uintptr_t hash);
   traceid mark_anonymous_klass_name(const Klass* klass);
 
+  traceid markPackage(const char* const name, uintptr_t hash);
+
   const JfrSymbolId::SymbolEntry* map_symbol(const Symbol* symbol) const;
   const JfrSymbolId::SymbolEntry* map_symbol(uintptr_t hash) const;
   const JfrSymbolId::CStringEntry* map_cstring(uintptr_t hash) const;
@@ -358,6 +368,11 @@ class JfrArtifactSet : public JfrCHeapObj {
   template <typename T>
   void iterate_cstrings(T& functor) {
     _symbol_id->iterate_cstrings(functor);
+  }
+
+  template <typename T>
+  void iterate_packages(T& functor) {
+    _symbol_id->iterate_packages(functor);
   }
 };
 

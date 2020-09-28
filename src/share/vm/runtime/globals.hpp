@@ -204,6 +204,10 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
 
 #endif // no compilers
 
+#if !INCLUDE_JFR
+#define LogJFR false
+#endif
+
 // string type aliases used only in this file
 typedef const char* ccstr;
 typedef const char* ccstrlist;   // represents string arguments which accumulate
@@ -264,14 +268,6 @@ struct Flag {
   bool get_bool() const;
   void set_bool(bool value);
 
-  bool is_int() const;
-  int get_int() const;
-  void set_int(int value);
-
-  bool is_uint() const;
-  uint get_uint() const;
-  void set_uint(uint value);
-  
   bool is_intx() const;
   intx get_intx() const;
   void set_intx(intx value);
@@ -284,10 +280,6 @@ struct Flag {
   uint64_t get_uint64_t() const;
   void set_uint64_t(uint64_t value);
 
-  bool is_size_t() const;
-  size_t get_size_t() const;
-  void set_size_t(size_t value);
-  
   bool is_double() const;
   double get_double() const;
   void set_double(double value);
@@ -378,7 +370,7 @@ class DoubleFlagSetting {
 class CommandLineFlags {
  public:
   static bool boolAt(const char* name, size_t len, bool* value, bool allow_locked = false, bool return_flag = false);
-  static bool boolAt(const char* name, bool* value, bool allow_locked = false, bool return_flag = false)      { return boolAt(name, strlen(name), value, allow_locked, return_flag); }
+  static bool boolAt(const char* name, bool* value, bool allow_locked = false, bool return_flag = false)   { return boolAt(name, strlen(name), value, allow_locked, return_flag); }
   static bool boolAtPut(const char* name, size_t len, bool* value, Flag::Flags origin);
   static bool boolAtPut(const char* name, bool* value, Flag::Flags origin)   { return boolAtPut(name, strlen(name), value, origin); }
 
@@ -1347,7 +1339,7 @@ class CommandLineFlags {
   develop(bool, TraceClassInitialization, false,                            \
           "Trace class initialization")                                     \
                                                                             \
-  develop(bool, TraceExceptions, false,                                     \
+  product(bool, TraceExceptions, false,                                     \
           "Trace exceptions")                                               \
                                                                             \
   develop(bool, TraceICs, false,                                            \
@@ -2027,7 +2019,7 @@ class CommandLineFlags {
   experimental(uintx, WorkStealingSpinToYieldRatio, 10,                     \
           "Ratio of hard spins to calls to yield")                          \
                                                                             \
-  develop(uintx, ObjArrayMarkingStride, 512,                                \
+  develop(uintx, ObjArrayMarkingStride, 2048,                               \
           "Number of object array elements to push onto the marking stack " \
           "before pushing a continuation entry")                            \
                                                                             \
@@ -3994,15 +3986,18 @@ class CommandLineFlags {
           "Allocation less than this value will be allocated "              \
           "using malloc. Larger allocations will use mmap.")                \
                                                                             \
-  product(bool, EnableTracing, false,                                       \
-          "Enable event-based tracing")                                     \
-                                                                            \
-  product(bool, UseLockedTracing, false,                                    \
-          "Use locked-tracing when doing event-based tracing")              \
-                                                                            \
   product_pd(bool, PreserveFramePointer,                                    \
              "Use the FP register for holding the frame pointer "           \
              "and not as a general purpose register.")                      \
+                                                                            \
+  product(bool, EnableTracing, false,                                       \
+          "Enable event-based tracing"                                      \
+          "Deprecated: use FlightRecorder instead")                         \
+                                                                            \
+  product(bool, UseLockedTracing, false,                                    \
+          "Use locked-tracing when doing event-based tracing"               \
+          "Deprecated: use FlightRecorder instead")                         \
+                                                                            \
   JFR_ONLY(product(bool, FlightRecorder, false,                             \
           "Enable Flight Recorder"))                                        \
                                                                             \
@@ -4012,11 +4007,14 @@ class CommandLineFlags {
   JFR_ONLY(product(ccstr, StartFlightRecording, NULL,                       \
           "Start flight recording with options"))                           \
                                                                             \
+  JFR_ONLY(product(bool, UnlockCommercialFeatures, false,                   \
+          "This flag is ignored. Left for compatibility"))                  \
+                                                                            \
   experimental(bool, UseFastUnorderedTimeStamps, false,                     \
           "Use platform unstable time where supported for timestamps only") \
                                                                             \
-  JFR_ONLY(product(bool, PrintJFRLog, false,                                \
-          "Enable print jfr detail log."))                                  \
+  JFR_ONLY(product(bool, LogJFR, false,                                     \
+          "Enable JFR logging (consider +Verbose)"))                        \
 
 /*
  *  Macros for factoring of globals

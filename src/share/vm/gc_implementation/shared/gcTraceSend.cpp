@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "gc_implementation/shared/gcHeapSummary.hpp"
 #include "gc_implementation/shared/gcTimer.hpp"
 #include "gc_implementation/shared/gcTrace.hpp"
@@ -33,7 +34,6 @@
 #include "gc_implementation/g1/evacuationInfo.hpp"
 #include "gc_implementation/g1/g1YCTypes.hpp"
 #endif
-#include "jfr/jfrEvents.hpp"
 
 // All GC dependencies against the trace framework is contained within this file.
 
@@ -120,6 +120,7 @@ bool YoungGCTracer::should_send_promotion_outside_plab_event() const {
 void YoungGCTracer::send_promotion_in_new_plab_event(Klass* klass, size_t obj_size,
                                                      uint age, bool tenured,
                                                      size_t plab_size) const {
+
   EventPromoteObjectInNewPLAB event;
   if (event.should_commit()) {
     event.set_gcId(_shared_gc_info.gc_id().id());
@@ -134,6 +135,7 @@ void YoungGCTracer::send_promotion_in_new_plab_event(Klass* klass, size_t obj_si
 
 void YoungGCTracer::send_promotion_outside_plab_event(Klass* klass, size_t obj_size,
                                                       uint age, bool tenured) const {
+
   EventPromoteObjectOutsidePLAB event;
   if (event.should_commit()) {
     event.set_gcId(_shared_gc_info.gc_id().id());
@@ -195,17 +197,13 @@ void G1NewTracer::send_g1_young_gc_event() {
   }
 }
 
-void G1MMUTracer::send_g1_mmu_event(double time_slice_ms, double gc_time_ms, double max_time_ms, bool gc_thread) {
+void G1MMUTracer::send_g1_mmu_event(double time_slice_ms, double gc_time_ms, double max_time_ms) {
   EventG1MMU e;
   if (e.should_commit()) {
-    if (gc_thread) {
-      e.set_gcId(G1CollectedHeap::heap()->gc_tracer_cm()->gc_id().id());
-    } else {
-      e.set_gcId(G1CollectedHeap::heap()->gc_tracer_stw()->gc_id().id());
-    }
-    e.set_timeSlice(time_slice_ms);
-    e.set_gcTime(gc_time_ms);
-    e.set_pauseTarget(max_time_ms);
+    e.set_gcId(GCId::peek().id());
+    e.set_timeSlice((s8)time_slice_ms);
+    e.set_gcTime((s8)gc_time_ms);
+    e.set_pauseTarget((s8)max_time_ms);
     e.commit();
   }
 }
@@ -234,7 +232,8 @@ void G1NewTracer::send_evacuation_failed_event(const EvacuationFailedInfo& ef_in
     e.commit();
   }
 }
-#endif
+
+#endif // INCLUDE_ALL_GCS
 
 static JfrStructVirtualSpace to_struct(const VirtualSpaceSummary& summary) {
   JfrStructVirtualSpace space;
@@ -320,7 +319,6 @@ void GCTracer::send_gc_heap_summary_event(GCWhen::Type when, const GCHeapSummary
   heap_summary.accept(&visitor);
 }
 
-
 static JfrStructMetaspaceSizes to_struct(const MetaspaceSizes& sizes) {
   JfrStructMetaspaceSizes meta_sizes;
 
@@ -349,7 +347,7 @@ class PhaseSender : public PhaseVisitor {
  public:
   PhaseSender(GCId gc_id) : _gc_id(gc_id) {}
 
-  template<typename T>
+   template<typename T>
   void send_phase(GCPhase* phase) {
     T event(UNTIMED);
     if (event.should_commit()) {
@@ -360,7 +358,7 @@ class PhaseSender : public PhaseVisitor {
       event.commit();
     }
   }
-  
+
   void visit(GCPhase* pause) { ShouldNotReachHere(); }
   void visit(ConcurrentPhase* pause) { Unimplemented(); }
   void visit(PausePhase* pause) {

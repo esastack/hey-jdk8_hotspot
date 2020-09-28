@@ -31,14 +31,12 @@
 class VM_Version_Ext : public VM_Version {
  private:
   static const size_t      CPU_TYPE_DESC_BUF_SIZE = 256;
-  static const size_t      CPU_DETAILED_DESC_BUF_SIZE = 4096;
 
   static int               _no_of_threads;
   static int               _no_of_cores;
   static int               _no_of_sockets;
   static bool              _initialized;
   static char              _cpu_name[CPU_TYPE_DESC_BUF_SIZE];
-  static char              _cpu_desc[CPU_DETAILED_DESC_BUF_SIZE];
 
  public:
   static int number_of_threads(void);

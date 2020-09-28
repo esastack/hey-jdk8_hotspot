@@ -36,7 +36,7 @@ class BitSet : public CHeapObj<mtTracing> {
  private:
   JfrVirtualMemory* _vmm;
   const HeapWord* const _region_start;
-  BitMapView _bits;
+  BitMap _bits;
   const size_t _region_size;
 
  public:
@@ -47,7 +47,7 @@ class BitSet : public CHeapObj<mtTracing> {
 
   BitMap::idx_t mark_obj(const HeapWord* addr) {
     const BitMap::idx_t bit = addr_to_bit(addr);
-    _bits.par_set_bit(bit);
+    _bits.set_bit(bit);
     return bit;
   }
 

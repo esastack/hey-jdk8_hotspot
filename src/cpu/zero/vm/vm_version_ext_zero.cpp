@@ -24,7 +24,7 @@
 
 #include "memory/allocation.hpp"
 #include "memory/allocation.inline.hpp"
-#include "runtime/os.inline.hpp"
+#include "runtime/os.hpp"
 #include "vm_version_ext_zero.hpp"
 
 // VM_Version_Ext statics
@@ -33,7 +33,6 @@ int VM_Version_Ext::_no_of_cores = 0;
 int VM_Version_Ext::_no_of_sockets = 0;
 bool VM_Version_Ext::_initialized = false;
 char VM_Version_Ext::_cpu_name[CPU_TYPE_DESC_BUF_SIZE] = {0};
-char VM_Version_Ext::_cpu_desc[CPU_DETAILED_DESC_BUF_SIZE] = {0};
 
 void VM_Version_Ext::initialize_cpu_information(void) {
   // do nothing if cpu info has been initialized
@@ -50,7 +49,6 @@ void VM_Version_Ext::initialize_cpu_information(void) {
   _no_of_threads = _no_of_cores;
   _no_of_sockets = _no_of_cores;
   snprintf(_cpu_name, CPU_TYPE_DESC_BUF_SIZE - 1, "Zero VM");
-  snprintf(_cpu_desc, CPU_DETAILED_DESC_BUF_SIZE, "%s", _features_string);
   _initialized = true;
 }
 
@@ -80,11 +78,5 @@ const char* VM_Version_Ext::cpu_name(void) {
 }
 
 const char* VM_Version_Ext::cpu_description(void) {
-  initialize_cpu_information();
-  char* tmp = NEW_C_HEAP_ARRAY_RETURN_NULL(char, CPU_DETAILED_DESC_BUF_SIZE, mtTracing);
-  if (NULL == tmp) {
-    return NULL;
-  }
-  strncpy(tmp, _cpu_desc, CPU_DETAILED_DESC_BUF_SIZE);
-  return tmp;
+  return "";
 }

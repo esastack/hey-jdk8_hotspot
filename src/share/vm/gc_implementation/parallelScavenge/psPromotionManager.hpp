@@ -147,10 +147,10 @@ class PSPromotionManager VALUE_OBJ_CLASS_SPEC {
   template <class T> void push_depth(T* p) {
     claimed_stack_depth()->push(p);
   }
-  
+
   inline void promotion_trace_event(oop new_obj, oop old_obj, size_t obj_size,
-                                  uint age, bool tenured,
-                                  const PSPromotionLAB* lab);
+                                    uint age, bool tenured,
+                                    const PSPromotionLAB* lab);
 
  protected:
   static OopStarTaskQueueSet* stack_array_depth()   { return _stack_array_depth; }

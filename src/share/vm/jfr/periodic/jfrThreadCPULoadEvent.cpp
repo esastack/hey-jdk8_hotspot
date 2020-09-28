@@ -23,7 +23,6 @@
  */
 
 #include "precompiled.hpp"
-#include "jfr/utilities/jfrLog.hpp"
 #include "jfr/jfrEvents.hpp"
 #include "jfr/periodic/jfrThreadCPULoadEvent.hpp"
 #include "jfr/support/jfrThreadId.hpp"
@@ -87,15 +86,14 @@ bool JfrThreadCPULoadEvent::update_event(EventThreadCPULoad& event, JavaThread* 
   // Avoid reporting percentages above the theoretical max
   if (user_time + system_time > wallclock_time) {
     jlong excess = user_time + system_time - wallclock_time;
+    cur_cpu_time -= excess;
     if (user_time > excess) {
       user_time -= excess;
       cur_user_time -= excess;
-      cur_cpu_time -= excess;
     } else {
-      cur_cpu_time -= excess;
       excess -= user_time;
+      cur_user_time -= user_time;
       user_time = 0;
-      cur_user_time = 0;
       system_time -= excess;
     }
   }
@@ -111,29 +109,29 @@ void JfrThreadCPULoadEvent::send_events() {
   JfrThreadLocal* const periodic_thread_tl = periodic_thread->jfr_thread_local();
   traceid periodic_thread_id = periodic_thread_tl->thread_id();
   const int processor_count = JfrThreadCPULoadEvent::get_processor_count();
-  JfrTicks event_time = JfrTicks::now(); // Event default use JfrTicks not Ticks(diff)
+  JfrTicks event_time = JfrTicks::now();
   jlong cur_wallclock_time = JfrThreadCPULoadEvent::get_wallclock_time();
 
-  JavaThread *jt = Threads::first();
-  size_t thread_count = 0;
-  while (jt) {
-    thread_count++;
-    EventThreadCPULoad event(UNTIMED);
-    if (JfrThreadCPULoadEvent::update_event(event, jt, cur_wallclock_time, processor_count)) {
-      event.set_starttime(event_time);
-      if (jt != periodic_thread) {
-        // Commit reads the thread id from this thread's trace data, so put it there temporarily
-        periodic_thread_tl->set_thread_id(JFR_THREAD_ID(jt));
-      } else {
-        periodic_thread_tl->set_thread_id(periodic_thread_id);
+  {
+    MutexLockerEx ml(Threads_lock);
+    unsigned jt_count = 0;
+    for (JavaThread *jt = Threads::first(); jt != NULL; jt = jt->next()) {
+      EventThreadCPULoad event(UNTIMED);
+      if (JfrThreadCPULoadEvent::update_event(event, jt, cur_wallclock_time, processor_count)) {
+        event.set_starttime(event_time);
+        if (jt != periodic_thread) {
+          // Commit reads the thread id from this thread's trace data, so put it there temporarily
+          periodic_thread_tl->set_thread_id(JFR_THREAD_ID(jt));
+        } else {
+          periodic_thread_tl->set_thread_id(periodic_thread_id);
+        }
+        event.commit();
       }
-      event.commit();
+      jt_count++;
     }
-    jt = jt->next();
+    if (LogJFR && Verbose) tty->print_cr("Measured CPU usage for %d threads in %.3f milliseconds", jt_count,
+      (double)(JfrTicks::now() - event_time).milliseconds());
   }
-
-  log_trace(jfr)("Measured CPU usage for %d threads in %.3f milliseconds", thread_count,
-    (double)(JfrTicks::now() - event_time).milliseconds());
   // Restore this thread's thread id
   periodic_thread_tl->set_thread_id(periodic_thread_id);
 }

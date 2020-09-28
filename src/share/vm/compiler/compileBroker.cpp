@@ -30,6 +30,7 @@
 #include "compiler/compileLog.hpp"
 #include "compiler/compilerOracle.hpp"
 #include "interpreter/linkResolver.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "memory/allocation.inline.hpp"
 #include "oops/methodData.hpp"
 #include "oops/method.hpp"
@@ -43,7 +44,6 @@
 #include "runtime/os.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/sweeper.hpp"
-#include "jfr/jfrEvents.hpp"
 #include "utilities/dtrace.hpp"
 #include "utilities/events.hpp"
 #ifdef COMPILER1
@@ -2023,8 +2023,9 @@ void CompileBroker::invoke_compiler_on_method(CompileTask* task) {
     compilable = ci_env.compilable();
 
     if (ci_env.failing()) {
-      task->set_failure_reason(ci_env.failure_reason());
+      const char* failure_reason = ci_env.failure_reason();
       const char* retry_message = ci_env.retry_message();
+      task->set_failure_reason(failure_reason);
       if (_compilation_log != NULL) {
         _compilation_log->log_failure(thread, task, ci_env.failure_reason(), retry_message);
       }
@@ -2033,6 +2034,13 @@ void CompileBroker::invoke_compiler_on_method(CompileTask* task) {
             err_msg_res("COMPILE SKIPPED: %s (%s)", ci_env.failure_reason(), retry_message) :
             err_msg_res("COMPILE SKIPPED: %s",      ci_env.failure_reason());
         task->print_compilation(tty, msg);
+      }
+
+      EventCompilationFailure event;
+      if (event.should_commit()) {
+        event.set_compileId(compile_id);
+        event.set_failureMessage(failure_reason);
+        event.commit();
       }
     } else {
       task->mark_success();

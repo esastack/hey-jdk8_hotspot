@@ -37,6 +37,7 @@
 #include "classfile/vmSymbols.hpp"
 #include "gc_interface/collectedHeap.inline.hpp"
 #include "interpreter/bytecode.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/referenceType.hpp"
 #include "memory/universe.inline.hpp"
@@ -67,7 +68,6 @@
 #include "services/attachListener.hpp"
 #include "services/management.hpp"
 #include "services/threadService.hpp"
-#include "jfr/jfrEvents.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/defaultStream.hpp"
 #include "utilities/dtrace.hpp"
@@ -433,15 +433,6 @@ JVM_END
 
 extern volatile jint vm_created;
 
-JVM_ENTRY_NO_ENV(void, JVM_BeforeHalt())                                                                                               
-  JVMWrapper("JVM_BeforeHalt");
-  EventShutdown event;
-  if (event.should_commit()) {
-    event.set_reason("Shutdown requested from Java");
-    event.commit();
-  }
-JVM_END
-
 JVM_ENTRY_NO_ENV(void, JVM_Exit(jint code))
   if (vm_created != 0 && (code == 0)) {
     // The VM is about to exit. We call back into Java to check whether finalizers should be run
@@ -449,6 +440,16 @@ JVM_ENTRY_NO_ENV(void, JVM_Exit(jint code))
   }
   before_exit(thread);
   vm_exit(code);
+JVM_END
+
+
+JVM_ENTRY_NO_ENV(void, JVM_BeforeHalt())
+  JVMWrapper("JVM_BeforeHalt");
+  EventShutdown event;
+  if (event.should_commit()) {
+    event.set_reason("Shutdown requested from Java");
+    event.commit();
+  }
 JVM_END
 
 
@@ -521,6 +522,17 @@ JVM_END
 JVM_ENTRY_NO_ENV(jint, JVM_ActiveProcessorCount(void))
   JVMWrapper("JVM_ActiveProcessorCount");
   return os::active_processor_count();
+JVM_END
+
+
+JVM_ENTRY_NO_ENV(jboolean, JVM_IsUseContainerSupport(void))
+  JVMWrapper("JVM_IsUseContainerSupport");
+#ifdef TARGET_OS_FAMILY_linux
+  if (UseContainerSupport) {
+      return JNI_TRUE;
+  }
+#endif
+  return JNI_FALSE;
 JVM_END
 
 
@@ -3284,7 +3296,7 @@ JVM_ENTRY(void, JVM_Yield(JNIEnv *env, jclass threadClass))
     os::yield();
   }
 JVM_END
-          
+
 static void post_thread_sleep_event(EventThreadSleep* event, jlong millis) {
   assert(event != NULL, "invariant");
   assert(event->should_commit(), "invariant");
@@ -3315,6 +3327,7 @@ JVM_ENTRY(void, JVM_Sleep(JNIEnv* env, jclass threadClass, jlong millis))
 #endif /* USDT2 */
 
   EventThreadSleep event;
+
   if (millis == 0) {
     // When ConvertSleepToYield is on, this matches the classic VM implementation of
     // JVM_Sleep. Critical for similar threading behaviour (Win32)
@@ -3338,7 +3351,6 @@ JVM_ENTRY(void, JVM_Sleep(JNIEnv* env, jclass threadClass, jlong millis))
         if (event.should_commit()) {
           post_thread_sleep_event(&event, millis);
         }
-
 #ifndef USDT2
         HS_DTRACE_PROBE1(hotspot, thread__sleep__end,1);
 #else /* USDT2 */
@@ -3352,11 +3364,9 @@ JVM_ENTRY(void, JVM_Sleep(JNIEnv* env, jclass threadClass, jlong millis))
     }
     thread->osthread()->set_state(old_state);
   }
-
   if (event.should_commit()) {
     post_thread_sleep_event(&event, millis);
   }
-
 #ifndef USDT2
   HS_DTRACE_PROBE1(hotspot, thread__sleep__end,0);
 #else /* USDT2 */

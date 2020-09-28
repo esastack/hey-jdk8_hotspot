@@ -56,6 +56,8 @@ class Semaphore : public CHeapObj<mtInternal> {
   void wait()                 { _impl.wait(); }
 
   bool trywait()              { return _impl.trywait(); }
+
+  void wait_with_safepoint_check(JavaThread* thread);
 };
 
 #endif // SHARE_VM_RUNTIME_SEMAPHORE_HPP

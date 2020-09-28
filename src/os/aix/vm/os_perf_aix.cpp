@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,23 +29,7 @@
 #include "os_aix.inline.hpp"
 #include "runtime/os.hpp"
 #include "runtime/os_perf.hpp"
-
-#ifdef TARGET_ARCH_x86
-# include "vm_version_ext_x86.hpp"
-#endif
-#ifdef TARGET_ARCH_sparc
-# include "vm_version_ext_sparc.hpp"
-#endif
-#ifdef TARGET_ARCH_zero
-# include "vm_version_ext_zero.hpp"
-#endif
-#ifdef TARGET_ARCH_arm
-// Not supported.
-# include "vm_version_ext_arm.hpp"
-#endif
-#ifdef TARGET_ARCH_ppc
-# include "vm_version_ext_ppc.hpp"
-#endif
+#include "vm_version_ext_ppc.hpp"
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -194,32 +179,6 @@ format:       %d %s %c %d %d %d %d %d %lu %lu %lu %lu %lu %lu %lu %ld %ld %ld %l
 
 */
 
-/**
- * For platforms that have them, when declaring
- * a printf-style function,
- *   formatSpec is the parameter number (starting at 1)
- *       that is the format argument ("%d pid %s")
- *   params is the parameter number where the actual args to
- *       the format starts. If the args are in a va_list, this
- *       should be 0.
- */
-#ifndef PRINTF_ARGS
-#  define PRINTF_ARGS(formatSpec,  params) ATTRIBUTE_PRINTF(formatSpec, params)
-#endif
-
-#ifndef SCANF_ARGS
-#  define SCANF_ARGS(formatSpec,   params) ATTRIBUTE_SCANF(formatSpec, params)
-#endif
-
-#ifndef _PRINTFMT_
-#  define _PRINTFMT_
-#endif
-
-#ifndef _SCANFMT_
-#  define _SCANFMT_
-#endif
-
-
 struct CPUPerfTicks {
   uint64_t  used;
   uint64_t  usedKernel;
@@ -249,7 +208,7 @@ static double get_cpu_load(int which_logical_cpu, CPUPerfCounters* counters, dou
 /** reads /proc/<pid>/stat data, with some checks and some skips.
  *  Ensure that 'fmt' does _NOT_ contain the first two "%d %s"
  */
-static int SCANF_ARGS(2, 0) vread_statdata(const char* procfile, _SCANFMT_ const char* fmt, va_list args) {
+static int vread_statdata(const char* procfile, const char* fmt, va_list args) {
   FILE*f;
   int n;
   char buf[2048];
@@ -278,7 +237,7 @@ static int SCANF_ARGS(2, 0) vread_statdata(const char* procfile, _SCANFMT_ const
   return n;
 }
 
-static int SCANF_ARGS(2, 3) read_statdata(const char* procfile, _SCANFMT_ const char* fmt, ...) {
+static int read_statdata(const char* procfile, const char* fmt, ...) {
   int   n;
   va_list args;
 
@@ -288,12 +247,110 @@ static int SCANF_ARGS(2, 3) read_statdata(const char* procfile, _SCANFMT_ const 
   return n;
 }
 
+static FILE* open_statfile(void) {
+  FILE *f;
+
+  if ((f = fopen("/proc/stat", "r")) == NULL) {
+    static int haveWarned = 0;
+    if (!haveWarned) {
+      haveWarned = 1;
+    }
+  }
+  return f;
+}
+
+static void
+next_line(FILE *f) {
+  int c;
+  do {
+    c = fgetc(f);
+  } while (c != '\n' && c != EOF);
+}
+
 /**
- * on Linux we got the ticks related information from /proc/stat
- * this does not work on AIX, libperfstat might be an alternative
+ * Return the total number of ticks since the system was booted.
+ * If the usedTicks parameter is not NULL, it will be filled with
+ * the number of ticks spent on actual processes (user, system or
+ * nice processes) since system boot. Note that this is the total number
+ * of "executed" ticks on _all_ CPU:s, that is on a n-way system it is
+ * n times the number of ticks that has passed in clock time.
+ *
+ * Returns a negative value if the reading of the ticks failed.
  */
 static OSReturn get_total_ticks(int which_logical_cpu, CPUPerfTicks* pticks) {
-  return OS_ERR;
+  FILE*         fh;
+  uint64_t      userTicks, niceTicks, systemTicks, idleTicks;
+  uint64_t      iowTicks = 0, irqTicks = 0, sirqTicks= 0;
+  int           logical_cpu = -1;
+  const int     expected_assign_count = (-1 == which_logical_cpu) ? 4 : 5;
+  int           n;
+
+  if ((fh = open_statfile()) == NULL) {
+    return OS_ERR;
+  }
+  if (-1 == which_logical_cpu) {
+    n = fscanf(fh, "cpu " UINT64_FORMAT " " UINT64_FORMAT " " UINT64_FORMAT " "
+            UINT64_FORMAT " " UINT64_FORMAT " " UINT64_FORMAT " " UINT64_FORMAT,
+            &userTicks, &niceTicks, &systemTicks, &idleTicks,
+            &iowTicks, &irqTicks, &sirqTicks);
+  } else {
+    // Move to next line
+    next_line(fh);
+
+    // find the line for requested cpu faster to just iterate linefeeds?
+    for (int i = 0; i < which_logical_cpu; i++) {
+      next_line(fh);
+    }
+
+    n = fscanf(fh, "cpu%u " UINT64_FORMAT " " UINT64_FORMAT " " UINT64_FORMAT " "
+               UINT64_FORMAT " " UINT64_FORMAT " " UINT64_FORMAT " " UINT64_FORMAT,
+               &logical_cpu, &userTicks, &niceTicks,
+               &systemTicks, &idleTicks, &iowTicks, &irqTicks, &sirqTicks);
+  }
+
+  fclose(fh);
+  if (n < expected_assign_count || logical_cpu != which_logical_cpu) {
+#ifdef DEBUG_LINUX_PROC_STAT
+    vm_fprintf(stderr, "[stat] read failed");
+#endif
+    return OS_ERR;
+  }
+
+#ifdef DEBUG_LINUX_PROC_STAT
+  vm_fprintf(stderr, "[stat] read "
+          UINT64_FORMAT " " UINT64_FORMAT " " UINT64_FORMAT " " UINT64_FORMAT " "
+          UINT64_FORMAT " " UINT64_FORMAT " " UINT64_FORMAT " \n",
+          userTicks, niceTicks, systemTicks, idleTicks,
+          iowTicks, irqTicks, sirqTicks);
+#endif
+
+  pticks->used       = userTicks + niceTicks;
+  pticks->usedKernel = systemTicks + irqTicks + sirqTicks;
+  pticks->total      = userTicks + niceTicks + systemTicks + idleTicks +
+                       iowTicks + irqTicks + sirqTicks;
+
+  return OS_OK;
+}
+
+
+static int get_systemtype(void) {
+  static int procEntriesType = UNDETECTED;
+  DIR *taskDir;
+
+  if (procEntriesType != UNDETECTED) {
+    return procEntriesType;
+  }
+
+  // Check whether we have a task subdirectory
+  if ((taskDir = opendir("/proc/self/task")) == NULL) {
+    procEntriesType = UNDETECTABLE;
+  } else {
+    // The task subdirectory exists; we're on a Linux >= 2.6 system
+    closedir(taskDir);
+    procEntriesType = LINUX26_NPTL;
+  }
+
+  return procEntriesType;
 }
 
 /** read user and system ticks from a named procfile, assumed to be in 'stat' format then. */
@@ -307,7 +364,26 @@ static int read_ticks(const char* procfile, uint64_t* userTicks, uint64_t* syste
  * to the JVM on any CPU.
  */
 static OSReturn get_jvm_ticks(CPUPerfTicks* pticks) {
-  return OS_ERR;
+  uint64_t userTicks;
+  uint64_t systemTicks;
+
+  if (get_systemtype() != LINUX26_NPTL) {
+    return OS_ERR;
+  }
+
+  if (read_ticks("/proc/self/stat", &userTicks, &systemTicks) != 2) {
+    return OS_ERR;
+  }
+
+  // get the total
+  if (get_total_ticks(-1, pticks) != OS_OK) {
+    return OS_ERR;
+  }
+
+  pticks->used       = userTicks;
+  pticks->usedKernel = systemTicks;
+
+  return OS_OK;
 }
 
 /**
@@ -370,8 +446,30 @@ static double get_cpu_load(int which_logical_cpu, CPUPerfCounters* counters, dou
   return user_load;
 }
 
-static int SCANF_ARGS(1, 2) parse_stat(_SCANFMT_ const char* fmt, ...) {
-  return OS_ERR;
+static int parse_stat(const char* fmt, ...) {
+  FILE *f;
+  va_list args;
+
+  va_start(args, fmt);
+
+  if ((f = open_statfile()) == NULL) {
+    va_end(args);
+    return OS_ERR;
+  }
+  for (;;) {
+    char line[80];
+    if (fgets(line, sizeof(line), f) != NULL) {
+      if (vsscanf(line, fmt, args) == 1) {
+        fclose(f);
+        va_end(args);
+        return OS_OK;
+      }
+    } else {
+        fclose(f);
+        va_end(args);
+        return OS_ERR;
+    }
+  }
 }
 
 static int get_noof_context_switches(uint64_t* switches) {

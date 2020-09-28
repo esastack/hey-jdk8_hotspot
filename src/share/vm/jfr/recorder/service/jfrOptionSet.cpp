@@ -28,7 +28,6 @@
 #include "jfr/recorder/service/jfrOptionSet.hpp"
 #include "jfr/utilities/jfrAllocation.hpp"
 #include "jfr/utilities/jfrTypes.hpp"
-#include "jfr/utilities/jfrLog.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "runtime/java.hpp"
@@ -146,7 +145,6 @@ void JfrOptionSet::set_sample_protection(jboolean protection) {
 bool JfrOptionSet::compressed_integers() {
   // Set this to false for debugging purposes.
   return true;
-//  return false;
 }
 
 bool JfrOptionSet::allow_retransforms() {
@@ -283,7 +281,7 @@ static bool parse_flight_recorder_options_internal(TRAPS) {
       const char* p = strstr((const char*)FlightRecorderOptions, option.name);
       const size_t option_length = strlen(option.name);
       if (p != NULL && p[option_length] == '=') {
-        log_error(arguments) ("-XX:FlightRecorderOptions=%s=... has been removed. %s", option.name, option.message);
+        tty->print_cr("-XX:FlightRecorderOptions=%s=... has been removed. %s", option.name, option.message);
         return false;
       }
     }
@@ -291,7 +289,7 @@ static bool parse_flight_recorder_options_internal(TRAPS) {
     oop message = java_lang_Throwable::message(PENDING_EXCEPTION);
     if (message != NULL) {
       const char* msg = java_lang_String::as_utf8_string(message);
-      log_error(arguments) ("%s", msg);
+      tty->print_cr("%s", msg);
     }
     CLEAR_PENDING_EXCEPTION;
     return false;
@@ -396,13 +394,13 @@ template <typename Argument>
 static void log_lower_than_min_value(Argument& memory_argument, julong min_value) {
   if (memory_argument.value()._size != memory_argument.value()._val) {
     // has multiplier
-    log_error(arguments) (
+    tty->print_cr(
       "This value is lower than the minimum size required " JULONG_FORMAT "%c",
       divide_with_user_unit(memory_argument, min_value),
       memory_argument.value()._multiplier);
     return;
   }
-  log_error(arguments) (
+  tty->print_cr(
     "This value is lower than the minimum size required " JULONG_FORMAT,
     divide_with_user_unit(memory_argument, min_value));
 }
@@ -411,39 +409,37 @@ template <typename Argument>
 static void log_set_value(Argument& memory_argument) {
   if (memory_argument.value()._size != memory_argument.value()._val) {
     // has multiplier
-    log_error(arguments) (
+    tty->print_cr(
       "Value specified for option \"%s\" is " JULONG_FORMAT "%c",
       memory_argument.name(),
       memory_argument.value()._val,
       memory_argument.value()._multiplier);
     return;
   }
-  log_error(arguments) (
+  tty->print_cr(
     "Value specified for option \"%s\" is " JULONG_FORMAT,
     memory_argument.name(), memory_argument.value()._val);
 }
 
 template <typename MemoryArg>
 static void log_adjustments(MemoryArg& original_memory_size, julong new_memory_size, const char* msg) {
-  if (Verbose) {
-    log_trace(arguments) (
-      "%s size (original) " JULONG_FORMAT " B (user defined: %s)",
-      msg,
-      original_memory_size.value()._size,
-      original_memory_size.is_set() ? "true" : "false");
-    log_trace(arguments) (
-      "%s size (adjusted) " JULONG_FORMAT " B (modified: %s)",
-      msg,
-      new_memory_size,
-      original_memory_size.value()._size != new_memory_size ? "true" : "false");
-    log_trace(arguments) (
-      "%s size (adjustment) %s" JULONG_FORMAT " B",
-      msg,
-      new_memory_size < original_memory_size.value()._size ? "-" : "+",
-      new_memory_size < original_memory_size.value()._size ?
-      original_memory_size.value()._size - new_memory_size :
-      new_memory_size - original_memory_size.value()._size);
-  }
+  if (LogJFR && Verbose) tty->print_cr(
+    "%s size (original) " JULONG_FORMAT " B (user defined: %s)",
+    msg,
+    original_memory_size.value()._size,
+    original_memory_size.is_set() ? "true" : "false");
+  if (LogJFR && Verbose) tty->print_cr(
+    "%s size (adjusted) " JULONG_FORMAT " B (modified: %s)",
+    msg,
+    new_memory_size,
+    original_memory_size.value()._size != new_memory_size ? "true" : "false");
+  if (LogJFR && Verbose) tty->print_cr(
+    "%s size (adjustment) %s" JULONG_FORMAT " B",
+    msg,
+    new_memory_size < original_memory_size.value()._size ? "-" : "+",
+    new_memory_size < original_memory_size.value()._size ?
+    original_memory_size.value()._size - new_memory_size :
+    new_memory_size - original_memory_size.value()._size);
 }
 
 // All "triangular" options are explicitly set
@@ -458,17 +454,17 @@ static bool check_for_ambiguity(MemoryArg& memory_size, MemoryArg& global_buffer
   if (calc_size != memory_size.value()._size) {
     // ambiguous
     log_set_value(global_buffer_size);
-    log_error(arguments) (
+    tty->print_cr(
       "Value specified for option \"%s\" is " JLONG_FORMAT,
       num_global_buffers.name(), num_global_buffers.value());
     log_set_value(memory_size);
-    log_error(arguments) (
+    tty->print_cr(
       "These values are causing an ambiguity when trying to determine how much memory to use");
-    log_error(arguments) ("\"%s\" * \"%s\" do not equal \"%s\"",
+    tty->print_cr("\"%s\" * \"%s\" do not equal \"%s\"",
       global_buffer_size.name(),
       num_global_buffers.name(),
       memory_size.name());
-    log_error(arguments) (
+    tty->print_cr(
       "Try to remove one of the involved options or make sure they are unambigous");
     return false;
   }
@@ -478,10 +474,10 @@ static bool check_for_ambiguity(MemoryArg& memory_size, MemoryArg& global_buffer
 template <typename Argument>
 static bool ensure_minimum_count(Argument& buffer_count_argument, jlong min_count) {
   if (buffer_count_argument.value() < min_count) {
-    log_error(arguments) (
+    tty->print_cr(
       "Value specified for option \"%s\" is " JLONG_FORMAT,
       buffer_count_argument.name(), buffer_count_argument.value());
-    log_error(arguments) (
+    tty->print_cr(
       "This value is lower than the minimum required number " JLONG_FORMAT,
       min_count);
     return false;
@@ -498,10 +494,10 @@ static bool ensure_calculated_gteq(MemoryArg& global_buffer_size, NumberArg& num
   const julong calc_size = global_buffer_size.value()._size * (julong)num_global_buffers.value();
   if (calc_size < min_value) {
     log_set_value(global_buffer_size);
-    log_error(arguments) (
+    tty->print_cr(
       "Value specified for option \"%s\" is " JLONG_FORMAT,
       num_global_buffers.name(), num_global_buffers.value());
-    log_error(arguments) ("\"%s\" * \"%s\" (" JULONG_FORMAT
+    tty->print_cr("\"%s\" * \"%s\" (" JULONG_FORMAT
       ") is lower than minimum memory size required " JULONG_FORMAT,
       global_buffer_size.name(),
       num_global_buffers.name(),
@@ -517,7 +513,7 @@ static bool ensure_first_gteq_second(Argument& first_argument, Argument& second_
   if (second_argument.value()._size > first_argument.value()._size) {
     log_set_value(first_argument);
     log_set_value(second_argument);
-    log_error(arguments) (
+    tty->print_cr(
       "The value for option \"%s\" should not be larger than the value specified for option \"%s\"",
       second_argument.name(), first_argument.name());
     return false;
@@ -554,17 +550,15 @@ static void post_process_adjusted_memory_options(const JfrMemoryOptions& options
   log_adjustments(_dcmd_memorysize, options.memory_size, "Memory");
   log_adjustments(_dcmd_globalbuffersize, options.global_buffer_size, "Global buffer");
   log_adjustments(_dcmd_threadbuffersize, options.thread_buffer_size, "Thread local buffer");
-  if (Verbose) {
-    log_trace(arguments) ("Number of global buffers (original) " JLONG_FORMAT " (user defined: %s)",
-      _dcmd_numglobalbuffers.value(),
-      _dcmd_numglobalbuffers.is_set() ? "true" : "false");
-    log_trace(arguments) ( "Number of global buffers (adjusted) " JULONG_FORMAT " (modified: %s)",
-      options.buffer_count,
-      _dcmd_numglobalbuffers.value() != (jlong)options.buffer_count ? "true" : "false");
-    log_trace(arguments) ("Number of global buffers (adjustment) %s" JLONG_FORMAT,
-      (jlong)options.buffer_count < _dcmd_numglobalbuffers.value() ? "" : "+",
-      (jlong)options.buffer_count - _dcmd_numglobalbuffers.value());
-  }
+  if (LogJFR && Verbose) tty->print_cr("Number of global buffers (original) " JLONG_FORMAT " (user defined: %s)",
+    _dcmd_numglobalbuffers.value(),
+    _dcmd_numglobalbuffers.is_set() ? "true" : "false");
+  if (LogJFR && Verbose) tty->print_cr( "Number of global buffers (adjusted) " JULONG_FORMAT " (modified: %s)",
+    options.buffer_count,
+    _dcmd_numglobalbuffers.value() != (jlong)options.buffer_count ? "true" : "false");
+  if (LogJFR && Verbose) tty->print_cr("Number of global buffers (adjustment) %s" JLONG_FORMAT,
+    (jlong)options.buffer_count < _dcmd_numglobalbuffers.value() ? "" : "+",
+    (jlong)options.buffer_count - _dcmd_numglobalbuffers.value());
 
   MemorySizeArgument adjusted_memory_size;
   adjusted_memory_size._val = divide_with_user_unit(_dcmd_memorysize, options.memory_size);

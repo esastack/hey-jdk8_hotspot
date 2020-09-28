@@ -60,7 +60,7 @@ class CPUPerformanceInterface::CPUPerformance : public CHeapObj<mtInternal> {
       // Error getting current time
       return false;
     }
-    *resultp = current_time.tv_sec * NANOS_PER_SEC + 1000L * current_time.tv_usec;
+    *resultp = (long)(current_time.tv_sec * NANOS_PER_SEC + 1000L * current_time.tv_usec);
     return true;
   }
 

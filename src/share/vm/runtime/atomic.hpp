@@ -88,7 +88,7 @@ class Atomic : AllStatic {
   inline static jint     cmpxchg    (jint     exchange_value, volatile jint*     dest, jint     compare_value);
   // See comment above about using jlong atomics on 32-bit platforms
   inline static jlong    cmpxchg    (jlong    exchange_value, volatile jlong*    dest, jlong    compare_value);
-         static julong   cmpxchg    (julong   exchange_value, volatile julong*   dest, julong   compare_value);
+
          static unsigned int cmpxchg(unsigned int exchange_value,
                                      volatile unsigned int* dest,
                                      unsigned int compare_value);

@@ -41,6 +41,7 @@ class JfrJavaEventWriter : AllStatic {
   static void notify(JavaThread* jt);
 
  public:
+  static bool has_required_classes(TRAPS);
   static void notify();
   static jobject event_writer(Thread* t);
   static jobject new_event_writer(TRAPS);

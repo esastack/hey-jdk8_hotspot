@@ -576,7 +576,7 @@ $(EXPORT_SERVER_DIR)/Xusage.txt $(EXPORT_CLIENT_DIR)/Xusage.txt $(EXPORT_MINIMAL
 	$(MV) $@.temp $@
 
 # Java Flight Recorder
-$(EXPORT_LIB_DIR)/jdk/jfr/internal/types/metadata.xml: $(HS_SRC_DIR)/share/vm/jfr/metadata/metadata.xml
+$(EXPORT_JRE_LIB_DIR)/jdk/jfr/internal/types/metadata.xml: $(HS_SRC_DIR)/share/vm/jfr/metadata/metadata.xml
 	mkdir -p $(basename $@)
 	cp $< $@
 

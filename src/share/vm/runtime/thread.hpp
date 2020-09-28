@@ -52,7 +52,9 @@
 #ifdef TARGET_ARCH_zero
 # include "stack_zero.hpp"
 #endif
+#if INCLUDE_JFR
 #include "jfr/support/jfrThreadExtension.hpp"
+#endif
 
 class ThreadSafepointState;
 class ThreadProfiler;
@@ -195,8 +197,8 @@ class Thread: public ThreadShadow {
 
     _has_async_exception    = 0x00000001U, // there is a pending async exception
     _critical_native_unlock = 0x00000002U, // Must call back to unlock JNI critical lock
-      
-    _trace_flag             = 0x00000004U  // call jfr backend
+
+    JFR_ONLY(_trace_flag    = 0x00000004U)  // call jfr tracing
   };
 
   // various suspension related flags - atomically updated
@@ -262,7 +264,7 @@ class Thread: public ThreadShadow {
   MetadataOnStackBuffer* _metadata_on_stack_buffer;
 
   JFR_ONLY(DEFINE_THREAD_LOCAL_FIELD_JFR;)      // Thread-local data for jfr
-  
+
   ThreadExt _ext;
 
   int   _vm_operation_started_count;            // VM_Operation support
@@ -384,13 +386,6 @@ class Thread: public ThreadShadow {
     clear_suspend_flag(_critical_native_unlock);
   }
 
-  void set_trace_flag() {
-    set_suspend_flag(_trace_flag);
-  }
-  void clear_trace_flag() {
-    clear_suspend_flag(_trace_flag);
-  }
-  
   // Support for Unhandled Oop detection
 #ifdef CHECK_UNHANDLED_OOPS
  private:
@@ -449,13 +444,12 @@ class Thread: public ThreadShadow {
   void incr_allocated_bytes(jlong size) { _allocated_bytes += size; }
   inline jlong cooked_allocated_bytes();
 
+  JFR_ONLY(DEFINE_THREAD_LOCAL_ACCESSOR_JFR;)
+  JFR_ONLY(DEFINE_TRACE_SUSPEND_FLAG_METHODS)
+
   const ThreadExt& ext() const          { return _ext; }
   ThreadExt& ext()                      { return _ext; }
 
-  JFR_ONLY(DEFINE_THREAD_LOCAL_ACCESSOR_JFR;)
-  
-  bool is_trace_suspend()               { return (_suspend_flags & _trace_flag) != 0; }
- 
   // VM operation support
   int vm_operation_ticket()                      { return ++_vm_operation_started_count; }
   int vm_operation_completed_count()             { return _vm_operation_completed_count; }
@@ -564,7 +558,7 @@ protected:
 
   bool    on_local_stack(address adr) const {
     /* QQQ this has knowledge of direction, ought to be a stack method */
-    return (_stack_base >= adr && adr >= (_stack_base - _stack_size));
+    return (_stack_base > adr && adr >= (_stack_base - _stack_size));
   }
 
   uintptr_t self_raw_id()                    { return _self_raw_id; }
@@ -740,8 +734,6 @@ class WatcherThread: public Thread {
 
   static bool _startable;
   volatile static bool _should_terminate; // updated without holding lock
-
-  os::WatcherThreadCrashProtection* _crash_protection;
  public:
   enum SomeConstants {
     delay_interval = 10                          // interrupt delay in milliseconds
@@ -768,15 +760,6 @@ class WatcherThread: public Thread {
   // Only allow start once the VM is sufficiently initialized
   // Otherwise the first task to enroll will trigger the start
   static void make_startable();
-
-  void set_crash_protection(os::WatcherThreadCrashProtection* crash_protection) {
-    assert(Thread::current()->is_Watcher_thread(), "Can only be set by WatcherThread");
-    _crash_protection = crash_protection;
-  }
-
-  bool has_crash_protection() const { return _crash_protection != NULL; }
-  os::WatcherThreadCrashProtection* crash_protection() const { return _crash_protection; }
-
  private:
   int sleep() const;
 };

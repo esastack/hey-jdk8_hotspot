@@ -41,14 +41,7 @@
 
  // returns updated value
 static traceid atomic_inc(traceid volatile* const dest) {
-  assert(VM_Version::supports_cx8(), "invariant");
-  traceid compare_value;
-  traceid exchange_value;
-  do {
-    compare_value = OrderAccess::load_acquire(dest);
-    exchange_value = compare_value + 1;
-  } while (Atomic::cmpxchg(exchange_value, dest, compare_value) != compare_value);
-  return exchange_value;
+  return (traceid) atomic_add_jlong(1, (jlong volatile*) dest);
 }
 
 static traceid next_class_id() {
@@ -57,8 +50,15 @@ static traceid next_class_id() {
 }
 
 static traceid next_thread_id() {
+#ifdef _LP64
   static volatile traceid thread_id_counter = 0;
   return atomic_inc(&thread_id_counter);
+#else
+  static volatile jint thread_id_counter = 0;
+  assert(thread_id_counter >= 0 && thread_id_counter < INT_MAX, "thread counter has been overflown");
+  Atomic::inc(&thread_id_counter);
+  return (traceid) thread_id_counter;
+#endif
 }
 
 static traceid next_class_loader_data_id() {
@@ -73,21 +73,15 @@ static void check_klass(const Klass* klass) {
   if (found_jdk_jfr_event_klass) {
     return;
   }
-
   static const Symbol* jdk_jfr_event_sym = NULL;
   if (jdk_jfr_event_sym == NULL) {
     // setup when loading the first TypeArrayKlass (Universe::genesis) hence single threaded invariant
     jdk_jfr_event_sym = SymbolTable::new_permanent_symbol("jdk/jfr/Event", Thread::current());
   }
   assert(jdk_jfr_event_sym != NULL, "invariant");
-  const Symbol* const klass_name = klass->name();
-
-  if (!found_jdk_jfr_event_klass) {
-    if (jdk_jfr_event_sym == klass_name) {
-      found_jdk_jfr_event_klass = true;
-      JfrTraceId::tag_as_jdk_jfr_event(klass);
-      return;
-    }
+  if (jdk_jfr_event_sym == klass->name()/* XXX && klass->class_loader() == NULL*/) {
+    found_jdk_jfr_event_klass = true;
+    JfrTraceId::tag_as_jdk_jfr_event(klass);
   }
 }
 

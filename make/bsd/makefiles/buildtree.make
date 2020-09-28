@@ -113,6 +113,10 @@ TOPLEVEL_EXCLUDE_DIRS	= $(ALWAYS_EXCLUDE_DIRS) -o -name adlc -o -name opto -o -n
 endif
 endif
 
+ifneq ($(ENABLE_JFR),true)
+ALWAYS_EXCLUDE_DIRS += -o -name jfr
+endif
+
 # Get things from the platform file.
 COMPILER	= $(shell sed -n 's/^compiler[ 	]*=[ 	]*//p' $(PLATFORM_FILE))
 
@@ -201,6 +205,12 @@ DATA_MODE/amd64 = 64
 
 DATA_MODE = $(DATA_MODE/$(BUILDARCH))
 
+ifeq ($(ENABLE_JFR), true)
+  INCLUDE_JFR = 1
+else
+  INCLUDE_JFR = 0
+endif
+
 flags.make: $(BUILDTREE_MAKE) ../shared_dirs.lst
 	@echo Creating $@ ...
 	$(QUIETLY) ( \
@@ -280,6 +290,7 @@ flags.make: $(BUILDTREE_MAKE) ../shared_dirs.lst
 	    echo && \
 	    echo "HOTSPOT_EXTRA_SYSDEFS\$$(HOTSPOT_EXTRA_SYSDEFS) = $(HOTSPOT_EXTRA_SYSDEFS)" && \
 	    echo "SYSDEFS += \$$(HOTSPOT_EXTRA_SYSDEFS)"; \
+	echo && echo "CFLAGS += -DINCLUDE_JFR=$(INCLUDE_JFR)"; \
 	echo; \
 	[ -n "$(SPEC)" ] && \
 	    echo "include $(SPEC)"; \

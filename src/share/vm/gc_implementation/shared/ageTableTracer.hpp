@@ -25,6 +25,7 @@
 #ifndef SHARE_VM_GC_SHARED_AGETABLETRACER_HPP
 #define SHARE_VM_GC_SHARED_AGETABLETRACER_HPP
 
+#include "gc_implementation/shared/gcTrace.hpp"
 #include "memory/allocation.hpp"
 
 class AgeTableTracer : AllStatic {

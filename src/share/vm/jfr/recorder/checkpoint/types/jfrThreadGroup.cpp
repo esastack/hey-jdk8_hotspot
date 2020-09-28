@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -238,9 +238,8 @@ void JfrThreadGroup::JfrThreadGroupEntry::set_thread_group_name(const char* tgna
   assert(_thread_group_name == NULL, "invariant");
   if (tgname != NULL) {
     size_t len = strlen(tgname);
-    _thread_group_name = JfrCHeapObj::new_array<char>(len+1);
-    strncpy(_thread_group_name, tgname, len);
-    _thread_group_name[len] = '\0';
+    _thread_group_name = JfrCHeapObj::new_array<char>(len + 1);
+    strncpy(_thread_group_name, tgname, len + 1);
   }
 }
 
@@ -288,7 +287,7 @@ traceid JfrThreadGroup::thread_group_id(const JavaThread* jt, Thread* current) {
   return helper.is_valid() ? thread_group_id_internal(helper) : 0;
 }
 
-traceid JfrThreadGroup::thread_group_id(JavaThread* const jt) {
+traceid JfrThreadGroup::thread_group_id(JavaThread* jt) {
   assert(!JfrStream_lock->owned_by_self(), "holding stream lock but should not hold it here");
   return thread_group_id(jt, jt);
 }
@@ -339,12 +338,9 @@ JfrThreadGroup::find_entry(const JfrThreadGroupPointers& ptrs) const {
 // of a corresponding entry in find_entry().
 JfrThreadGroup::JfrThreadGroupEntry*
 JfrThreadGroup::new_entry(JfrThreadGroupPointers& ptrs) {
-  const char* str = NULL;
-  typeArrayOop name = java_lang_ThreadGroup::name(ptrs.thread_group_oop());
-  if (name != NULL) {
-    str = UNICODE::as_utf8((jchar*) name->base(T_CHAR), name->length());
-  }
-  JfrThreadGroupEntry* const tge = new JfrThreadGroupEntry(str, ptrs);
+  typeArrayOop tg_name = java_lang_ThreadGroup::name(ptrs.thread_group_oop());
+  JfrThreadGroupEntry* const tge =
+    new JfrThreadGroupEntry(UNICODE::as_utf8((jchar*) tg_name->base(T_CHAR), tg_name->length()), ptrs);
   add_entry(tge);
   return tge;
 }

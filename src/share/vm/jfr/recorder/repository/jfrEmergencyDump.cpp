@@ -35,7 +35,7 @@
 #include "runtime/globals.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/thread.hpp"
-#include "jfr/utilities/jfrLog.hpp"
+
 /*
 * We are just about to exit the VM, so we will be very aggressive
 * at this point in order to increase overall success of dumping jfr data:
@@ -70,7 +70,6 @@ static void prepare_for_emergency_dump(Thread* thread) {
     Threads_lock->unlock();
   }
 
-  // TODO (Module_lock -> PackageTable_lock)
   if (PackageTable_lock->owned_by_self()) {
     PackageTable_lock->unlock();
   }

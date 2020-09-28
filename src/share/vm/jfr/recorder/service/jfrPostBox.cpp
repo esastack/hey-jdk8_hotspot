@@ -25,8 +25,8 @@
 #include "precompiled.hpp"
 #include "jfr/recorder/service/jfrPostBox.hpp"
 #include "jfr/utilities/jfrTryLock.hpp"
-#include "runtime/atomic.hpp"
-#include "runtime/orderAccess.hpp"
+#include "runtime/atomic.inline.hpp"
+#include "runtime/orderAccess.inline.hpp"
 #include "runtime/thread.inline.hpp"
 
 #define MSG_IS_SYNCHRONOUS ( (MSGBIT(MSG_ROTATE)) |          \
@@ -84,7 +84,7 @@ void JfrPostBox::post(JFR_Msg msg) {
 
 void JfrPostBox::deposit(int new_messages) {
   while (true) {
-    const int current_msgs = OrderAccess::load_acquire(&_messages);
+    const int current_msgs = OrderAccess::load_acquire((int*)&_messages);
     // OR the new message
     const int exchange_value = current_msgs | new_messages;
     const int result = Atomic::cmpxchg(exchange_value, &_messages, current_msgs);
@@ -134,7 +134,7 @@ bool JfrPostBox::is_message_processed(uintptr_t serial_id) const {
 
 bool JfrPostBox::is_empty() const {
   assert(JfrMsg_lock->owned_by_self(), "not holding JfrMsg_lock!");
-  return OrderAccess::load_acquire((jint*)&_messages) == 0;
+  return OrderAccess::load_acquire((int*)&_messages) == 0;
 }
 
 int JfrPostBox::collect() {

@@ -38,6 +38,8 @@ class JfrRecorder : public JfrCHeapObj {
   friend class Jfr;
   friend void recorderthread_entry(JavaThread*, Thread*);
  private:
+  static bool _shutting_down;
+
   static bool create_checkpoint_manager();
   static bool create_chunk_repository();
   static bool create_java_event_writer();
@@ -64,6 +66,8 @@ class JfrRecorder : public JfrCHeapObj {
   static void start_recording();
   static bool is_recording();
   static void stop_recording();
+  static bool is_shutting_down() { return _shutting_down; }
+  static void set_is_shutting_down() { _shutting_down = true; }
 };
 
 #endif // SHARE_VM_JFR_RECORDER_JFRRECORDER_HPP

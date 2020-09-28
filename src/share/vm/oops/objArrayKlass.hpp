@@ -91,7 +91,7 @@ class ObjArrayKlass : public ArrayKlass {
 
  public:
   // Casting from Klass*
-  static ObjArrayKlass* cast(const Klass* k) {
+  static ObjArrayKlass* cast(Klass* k) {
     assert(k->oop_is_objArray(), "cast to ObjArrayKlass");
     return (ObjArrayKlass*) k;
   }

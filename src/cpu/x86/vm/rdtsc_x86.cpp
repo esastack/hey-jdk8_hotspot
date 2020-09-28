@@ -23,23 +23,27 @@
  */
 
 #include "precompiled.hpp"
-#include "rdtsc_x86.hpp"
-#include "runtime/thread.inline.hpp"
-#include "vm_version_ext_x86.hpp"
 
-// The following header contains the implementations of rdtsc()
+//#include "os_linux_x86.inline.hpp"
 #ifdef TARGET_OS_ARCH_linux_x86
 # include "os_linux_x86.inline.hpp"
-#endif
-#ifdef TARGET_OS_ARCH_solaris_x86
-# include "os_solaris_x86.inline.hpp"
-#endif
-#ifdef TARGET_OS_ARCH_windows_x86
-# include "os_windows_x86.inline.hpp"
 #endif
 #ifdef TARGET_OS_ARCH_bsd_x86
 # include "os_bsd_x86.inline.hpp"
 #endif
+#ifdef TARGET_OS_ARCH_windows_x86
+# include "os_windows_x86.inline.hpp"
+#endif
+#ifdef TARGET_OS_ARCH_solaris_x86
+# include "os_solaris_x86.inline.hpp"
+#endif
+
+#include "rdtsc_x86.hpp"
+#include "runtime/thread.inline.hpp"
+#include "vm_version_ext_x86.hpp"
+#include "runtime/os.hpp"
+
+// The following header contains the implementations of rdtsc()
 
 static jlong _epoch = 0;
 static bool rdtsc_elapsed_counter_enabled = false;

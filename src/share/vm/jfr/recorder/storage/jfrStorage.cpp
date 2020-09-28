@@ -36,7 +36,6 @@
 #include "jfr/utilities/jfrIterator.hpp"
 #include "jfr/utilities/jfrTime.hpp"
 #include "jfr/writers/jfrNativeEventWriter.hpp"
-#include "jfr/utilities/jfrLog.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/orderAccess.hpp"
 #include "runtime/os.hpp"
@@ -150,7 +149,7 @@ JfrStorageControl& JfrStorage::control() {
 }
 
 static void log_allocation_failure(const char* msg, size_t size) {
-  log_warning(jfr)("Unable to allocate " SIZE_FORMAT " bytes of %s.", size, msg);
+  if (LogJFR) tty->print_cr("Unable to allocate " SIZE_FORMAT " bytes of %s.", size, msg);
 }
 
 BufferPtr JfrStorage::acquire_thread_local(Thread* thread, size_t size /* 0 */) {
@@ -258,7 +257,9 @@ bool JfrStorage::flush_regular_buffer(BufferPtr buffer, Thread* thread) {
     write_data_loss(buffer, thread);
     return false;
   }
-  assert(promotion_buffer->acquired_by_self(), "invariant");
+  if (!JfrRecorder::is_shutting_down()) {
+      assert(promotion_buffer->acquired_by_self(), "invariant");
+  }
   assert(promotion_buffer->free_size() >= unflushed_size, "invariant");
   buffer->concurrent_move_and_reinitialize(promotion_buffer, unflushed_size);
   assert(buffer->empty(), "invariant");
@@ -293,8 +294,8 @@ static JfrAgeNode* new_age_node(BufferPtr buffer, JfrStorageAgeMspace* age_mspac
 }
 
 static void log_registration_failure(size_t unflushed_size) {
-  log_warning(jfr)("Unable to register a full buffer of " SIZE_FORMAT " bytes.", unflushed_size);
-  log_debug(jfr, system)("Cleared 1 full buffer of " SIZE_FORMAT " bytes.", unflushed_size);
+  if (LogJFR) tty->print_cr("Unable to register a full buffer of " SIZE_FORMAT " bytes.", unflushed_size);
+  if (LogJFR) tty->print_cr("Cleared 1 full buffer of " SIZE_FORMAT " bytes.", unflushed_size);
 }
 
 static void handle_registration_failure(BufferPtr buffer) {
@@ -339,10 +340,9 @@ static bool full_buffer_registration(BufferPtr buffer, JfrStorageAgeMspace* age_
 void JfrStorage::register_full(BufferPtr buffer, Thread* thread) {
   assert(buffer != NULL, "invariant");
   assert(buffer->retired(), "invariant");
-  // assert(buffer->acquired_by(thread), "invariant");
+  assert(buffer->acquired_by(thread), "invariant");
   if (!full_buffer_registration(buffer, _age_mspace, control(), thread)) {
     handle_registration_failure(buffer);
-    buffer->release(); 
   }
   if (control().should_post_buffer_full_message()) {
     _post_box.post(MSG_FULLBUFFER);
@@ -377,9 +377,8 @@ void JfrStorage::release(BufferPtr buffer, Thread* thread) {
     }
   }
   assert(buffer->empty(), "invariant");
-//  assert(buffer->identity() != NULL, "invariant");
+  assert(buffer->identity() != NULL, "invariant");
   control().increment_dead();
-  buffer->release();
   buffer->set_retired();
 }
 
@@ -393,11 +392,9 @@ void JfrStorage::release_thread_local(BufferPtr buffer, Thread* thread) {
 }
 
 static void log_discard(size_t count, size_t amount, size_t current) {
-  if (log_is_enabled(Debug, jfr, system)) {
-    assert(count > 0, "invariant");
-    log_debug(jfr, system)("Cleared " SIZE_FORMAT " full buffer(s) of " SIZE_FORMAT" bytes.", count, amount);
-    log_debug(jfr, system)("Current number of full buffers " SIZE_FORMAT "", current);
-  }
+  assert(count > 0, "invariant");
+  if (LogJFR) tty->print_cr("Cleared " SIZE_FORMAT " full buffer(s) of " SIZE_FORMAT" bytes.", count, amount);
+  if (LogJFR) tty->print_cr("Current number of full buffers " SIZE_FORMAT "", current);
 }
 
 void JfrStorage::discard_oldest(Thread* thread) {
@@ -688,11 +685,9 @@ static size_t process_full(Processor& processor, JfrStorageControl& control, Jfr
 }
 
 static void log(size_t count, size_t amount, bool clear = false) {
-  if (log_is_enabled(Debug, jfr, system)) {
-    if (count > 0) {
-      log_debug(jfr, system)("%s " SIZE_FORMAT " full buffer(s) of " SIZE_FORMAT" B of data%s",
-        clear ? "Discarded" : "Wrote", count, amount, clear ? "." : " to chunk.");
-    }
+  if (count > 0) {
+    if (LogJFR) tty->print_cr("%s " SIZE_FORMAT " full buffer(s) of " SIZE_FORMAT" B of data%s",
+      clear ? "Discarded" : "Wrote", count, amount, clear ? "." : " to chunk.");
   }
 }
 
@@ -721,10 +716,8 @@ size_t JfrStorage::clear_full() {
 
 static void scavenge_log(size_t count, size_t amount, size_t current) {
   if (count > 0) {
-    if (log_is_enabled(Debug, jfr, system)) {
-      log_debug(jfr, system)("Released " SIZE_FORMAT " dead buffer(s) of " SIZE_FORMAT" B of data.", count, amount);
-      log_debug(jfr, system)("Current number of dead buffers " SIZE_FORMAT "", current);
-    }
+    if (LogJFR) tty->print_cr("Released " SIZE_FORMAT " dead buffer(s) of " SIZE_FORMAT" B of data.", count, amount);
+    if (LogJFR) tty->print_cr("Current number of dead buffers " SIZE_FORMAT "", current);
   }
 }
 
@@ -747,7 +740,7 @@ public:
       ++_count;
       _amount += t->total_size();
       t->clear_retired();
-//      t->release();
+      t->release();
       _control.decrement_dead();
       mspace_release_full_critical(t, _mspace);
     }

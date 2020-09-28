@@ -150,11 +150,14 @@ LIBJVM   = lib$(JVM).so
 LIBJVM_DEBUGINFO   = lib$(JVM).debuginfo
 LIBJVM_DIZ         = lib$(JVM).diz
 
+ifneq ($(ENABLE_JFR),true)
+EXCLUDE_JFR_PATHS:= -o -name jfr -prune
+endif
 SPECIAL_PATHS:=adlc c1 gc_implementation opto shark libadt
 
 SOURCE_PATHS=\
   $(shell find $(HS_COMMON_SRC)/share/vm/* -type d \! \
-      \( -name DUMMY $(foreach dir,$(SPECIAL_PATHS),-o -name $(dir)) \))
+      \( -name DUMMY $(foreach dir,$(SPECIAL_PATHS),-o -name $(dir)) $(EXCLUDE_JFR_PATHS) \))
 SOURCE_PATHS+=$(HS_COMMON_SRC)/os/$(Platform_os_family)/vm
 SOURCE_PATHS+=$(HS_COMMON_SRC)/os/posix/vm
 SOURCE_PATHS+=$(HS_COMMON_SRC)/cpu/$(Platform_arch)/vm

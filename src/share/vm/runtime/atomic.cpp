@@ -74,12 +74,6 @@ unsigned Atomic::cmpxchg(unsigned int exchange_value,
                                        (jint)compare_value);
 }
 
-julong Atomic::cmpxchg(julong exchange_value,
-                         volatile julong* dest, julong compare_value) {
-  return (julong)Atomic::cmpxchg((jlong)exchange_value, (volatile jlong*)dest,
-                                       (jlong)compare_value);
-}
-
 jlong Atomic::add(jlong    add_value, volatile jlong*    dest) {
   jlong old = load(dest);
   jlong new_value = old + add_value;

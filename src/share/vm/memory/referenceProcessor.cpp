@@ -28,13 +28,15 @@
 #include "gc_implementation/shared/gcTimer.hpp"
 #include "gc_implementation/shared/gcTraceTime.hpp"
 #include "gc_interface/collectedHeap.hpp"
-#include "jfr/jfr.hpp"
 #include "gc_interface/collectedHeap.inline.hpp"
 #include "memory/referencePolicy.hpp"
 #include "memory/referenceProcessor.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/jniHandles.hpp"
+#if INCLUDE_JFR
+#include "jfr/jfr.hpp"
+#endif // INCLUDE_JFR
 
 PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 

@@ -30,6 +30,8 @@
 #include "compiler/compileBroker.hpp"
 #include "compiler/compilerOracle.hpp"
 #include "interpreter/bytecodeHistogram.hpp"
+#include "jfr/jfrEvents.hpp"
+#include "jfr/support/jfrThreadId.hpp"
 #include "memory/genCollectedHeap.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/universe.hpp"
@@ -95,9 +97,9 @@
 #include "opto/indexSet.hpp"
 #include "opto/runtime.hpp"
 #endif
-#include "jfr/jfrEvents.hpp"
-#include "jfr/support/jfrThreadId.hpp"
+#if INCLUDE_JFR
 #include "jfr/jfr.hpp"
+#endif
 
 #ifndef USDT2
 HS_DTRACE_PROBE_DECL(hotspot, vm__shutdown);
@@ -489,14 +491,6 @@ void before_exit(JavaThread * thread) {
     os::infinite_sleep();
   }
 
-  EventThreadEnd event;
-  if (event.should_commit()) {
-    event.set_thread(JFR_THREAD_ID(thread));
-    event.commit();
-  }
-
-  JFR_ONLY(Jfr::on_vm_shutdown();)
-  
   // Terminate watcher thread - must before disenrolling any periodic task
   if (PeriodicTask::num_tasks() > 0)
     WatcherThread::stop();
@@ -530,6 +524,15 @@ void before_exit(JavaThread * thread) {
   if (JvmtiExport::should_post_thread_life()) {
     JvmtiExport::post_thread_end(thread);
   }
+
+
+  EventThreadEnd event;
+  if (event.should_commit()) {
+    event.set_thread(JFR_THREAD_ID(thread));
+    event.commit();
+  }
+
+  JFR_ONLY(Jfr::on_vm_shutdown();)
 
   // Always call even when there are not JVMTI environments yet, since environments
   // may be attached late and JVMTI must track phases of VM execution

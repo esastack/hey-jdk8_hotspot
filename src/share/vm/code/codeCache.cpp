@@ -32,6 +32,7 @@
 #include "code/pcDesc.hpp"
 #include "compiler/compileBroker.hpp"
 #include "gc_implementation/shared/markSweep.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/gcLocker.hpp"
 #include "memory/iterator.hpp"
@@ -47,7 +48,7 @@
 #include "runtime/mutexLocker.hpp"
 #include "services/memoryService.hpp"
 #include "utilities/xmlstream.hpp"
-#include "jfr/jfrEvents.hpp"
+
 
 // Helper class for printing in CodeCache
 
@@ -187,13 +188,13 @@ CodeBlob* CodeCache::allocate(int size, bool is_critical) {
     cb = (CodeBlob*)_heap->allocate(size, is_critical);
     if (cb != NULL) break;
     if (!_heap->expand_by(CodeCacheExpansionSize)) {
-        if (CodeCache_lock->owned_by_self()) {
-          MutexUnlockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
-          report_codemem_full();
-        } else {
-          report_codemem_full();
-        }
       // Expansion failed
+      if (CodeCache_lock->owned_by_self()) {
+        MutexUnlockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
+        report_codemem_full();
+      } else {
+        report_codemem_full();
+      }
       return NULL;
     }
     if (PrintCodeCacheExtension) {

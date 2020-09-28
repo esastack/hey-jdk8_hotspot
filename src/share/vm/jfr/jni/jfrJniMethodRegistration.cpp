@@ -25,7 +25,7 @@
 #include "precompiled.hpp"
 #include "jfr/jni/jfrJniMethod.hpp"
 #include "jfr/jni/jfrJniMethodRegistration.hpp"
-#include "jfr/utilities/jfrLog.hpp"
+#include "jfr/utilities/jfrJavaLog.hpp"
 #include "runtime/interfaceSupport.hpp"
 #include "runtime/thread.hpp"
 #include "utilities/exceptions.hpp"
@@ -88,7 +88,7 @@ JfrJniMethodRegistration::JfrJniMethodRegistration(JNIEnv* env) {
       assert(jt != NULL, "invariant");
       assert(jt->thread_state() == _thread_in_native, "invariant");
       ThreadInVMfromNative transition(jt);
-      log_error(jfr, system)("RegisterNatives for JVM class failed!");
+      if (true) tty->print_cr("RegisterNatives for JVM class failed!");
     }
     env->DeleteLocalRef(jfr_clz);
   }

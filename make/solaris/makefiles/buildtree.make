@@ -48,7 +48,7 @@
 # flags.make	- with macro settings
 # vm.make	- to support making "$(MAKE) -v vm.make" in makefiles
 # adlc.make	-
-# jfr.make	    - generate jfr event and type definitions
+# jfr.make	- generate jfr event and type definitions
 # jvmti.make	- generate JVMTI bindings from the spec (JSR-163)
 # sa.make	- generate SA jar file and natives
 #
@@ -101,6 +101,10 @@ else
 # compiler1 and core use the same exclude list
 TOPLEVEL_EXCLUDE_DIRS	= $(ALWAYS_EXCLUDE_DIRS) -o -name adlc -o -name opto -o -name libadt -o -name agent
 endif
+endif
+
+ifneq ($(ENABLE_JFR),true)
+ALWAYS_EXCLUDE_DIRS += -o -name jfr
 endif
 
 # Get things from the platform file.
@@ -190,6 +194,12 @@ DATA_MODE/amd64 = 64
 
 DATA_MODE = $(DATA_MODE/$(BUILDARCH))
 
+ifeq ($(ENABLE_JFR), true)
+  INCLUDE_JFR = 1
+else
+  INCLUDE_JFR = 0
+endif
+
 flags.make: $(BUILDTREE_MAKE) ../shared_dirs.lst
 	@echo Creating $@ ...
 	$(QUIETLY) ( \
@@ -269,7 +279,10 @@ flags.make: $(BUILDTREE_MAKE) ../shared_dirs.lst
 	    echo && \
 	    echo "HOTSPOT_EXTRA_SYSDEFS\$$(HOTSPOT_EXTRA_SYSDEFS) = $(HOTSPOT_EXTRA_SYSDEFS)" && \
 	    echo "SYSDEFS += \$$(HOTSPOT_EXTRA_SYSDEFS)"; \
+            echo && echo "CFLAGS += -DINCLUDE_JFR=$(INCLUDE_JFR)"; \
 	echo; \
+	[ -n "$(INCLUDE_JFR)" ] && \
+	    echo && echo "INCLUDE_JFR = $(INCLUDE_JFR)"; \
 	[ -n "$(SPEC)" ] && \
 	    echo "include $(SPEC)"; \
 	echo "include \$$(GAMMADIR)/make/$(OS_FAMILY)/makefiles/$(VARIANT).make"; \

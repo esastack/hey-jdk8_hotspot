@@ -3717,6 +3717,16 @@ void ClassFileParser::layout_fields(Handle class_loader,
   info->has_nonstatic_fields = has_nonstatic_fields;
 }
 
+static bool relax_format_check_for(ClassLoaderData* loader_data) {
+  bool trusted = (loader_data->is_the_null_class_loader_data() ||
+                  SystemDictionary::is_ext_class_loader(loader_data->class_loader()));
+  bool need_verify =
+    // verifyAll
+    (BytecodeVerificationLocal && BytecodeVerificationRemote) ||
+    // verifyRemote
+    (!BytecodeVerificationLocal && BytecodeVerificationRemote && !trusted);
+  return !need_verify;
+}
 
 instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
                                                     ClassLoaderData* loader_data,
@@ -3863,7 +3873,7 @@ instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
 
   // Check if verification needs to be relaxed for this class file
   // Do not restrict it to jdk1.0 or jdk1.1 to maintain backward compatibility (4982376)
-  _relax_verify = Verifier::relax_verify_for(class_loader());
+  _relax_verify = relax_format_check_for(_loader_data);
 
   // Constant pool
   constantPoolHandle cp = parse_constant_pool(CHECK_(nullHandle));
@@ -3884,15 +3894,14 @@ instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
   access_flags.set_flags(flags);
 
   // This class and superclass
-  u2 this_class_index = cfs->get_u2_fast();
-  _this_class_index = this_class_index; //used by jfr
+  _this_class_index = cfs->get_u2_fast();
   check_property(
-    valid_cp_range(this_class_index, cp_size) &&
-      cp->tag_at(this_class_index).is_unresolved_klass(),
+    valid_cp_range(_this_class_index, cp_size) &&
+      cp->tag_at(_this_class_index).is_unresolved_klass(),
     "Invalid this class index %u in constant pool in class file %s",
-    this_class_index, CHECK_(nullHandle));
+    _this_class_index, CHECK_(nullHandle));
 
-  Symbol*  class_name  = cp->unresolved_klass_at(this_class_index);
+  Symbol*  class_name  = cp->unresolved_klass_at(_this_class_index);
   assert(class_name != NULL, "class_name can't be null");
 
   // It's important to set parsed_name *before* resolving the super class.
@@ -4123,9 +4132,9 @@ instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
     // that changes, then InstanceKlass::idnum_can_increment()
     // has to be changed accordingly.
     this_klass->set_initial_method_idnum(methods->length());
-    this_klass->set_name(cp->klass_name_at(this_class_index));
+    this_klass->set_name(cp->klass_name_at(_this_class_index));
     if (is_anonymous())  // I am well known to myself
-      cp->klass_at_put(this_class_index, this_klass()); // eagerly resolve
+      cp->klass_at_put(_this_class_index, this_klass()); // eagerly resolve
 
     this_klass->set_minor_version(minor_version);
     this_klass->set_major_version(major_version);
@@ -5277,21 +5286,24 @@ char* ClassFileParser::skip_over_field_signature(char* signature,
   return NULL;
 }
 
+#if INCLUDE_JFR
+
 // Caller responsible for ResourceMark
 // clone stream with rewound position
-const ClassFileStream* ClassFileParser::clone_stream() const {
+ClassFileStream* ClassFileParser::clone_stream() const {
   assert(_stream != NULL, "invariant");
 
   return _stream->clone();
 }
 
 void ClassFileParser::set_klass_to_deallocate(InstanceKlass* klass) {
-
 #ifdef ASSERT
   if (klass != NULL) {
     assert(NULL == _klass, "leaking?");
   }
 #endif
-  // Not _klass_to_deallocate
+
   _klass = klass;
 }
+
+#endif // INCLUDE_JFR

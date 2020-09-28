@@ -27,13 +27,13 @@
 #include "runtime/os.hpp"
 // POSIX unamed semaphores are not supported on OS X.
 #include "semaphore_posix.hpp"
-#include "utilities/debug.hpp"
 #include <semaphore.h>
 
 #define check_with_errno(check_type, cond, msg)                             \
   do {                                                                      \
     int err = errno;                                                        \
-    check_type(cond, err_msg("%s; error='%d'", msg, err));                  \
+    check_type(cond, /*"%s; error='%s' (errno=%s)", */msg/*, os::strerror(err),*/   \
+               /*os::errno_name(err)*/);                                        \
 } while (false)
 
 #define assert_with_errno(cond, msg)    check_with_errno(assert, cond, msg)

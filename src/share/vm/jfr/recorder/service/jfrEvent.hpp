@@ -44,7 +44,7 @@ class JfrEventVerifier {
  private:
   // verification of event fields
   BitMap::bm_word_t _verification_storage[1];
-  BitMapView _verification_bit_map;
+  BitMap _verification_bit_map;
   bool _committed;
 
   JfrEventVerifier();
@@ -99,18 +99,10 @@ class JfrEvent {
     _start_time = time.value();
   }
 
-  jlong get_starttime() {
-    return _start_time;
-  }
-  
   void set_endtime(const JfrTicks& time) {
     _end_time = time.value();
   }
 
-  jlong get_endtime() {
-    return _end_time;
-  }
-    
   void set_starttime(const Ticks& time) {
     _start_time = JfrTime::is_ft_enabled() ? time.ft_value() : time.value();
   }

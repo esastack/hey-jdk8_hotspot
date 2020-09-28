@@ -32,6 +32,8 @@
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "interpreter/linkResolver.hpp"
+#include "jfr/jfrEvents.hpp"
+#include "jfr/support/jfrThreadId.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/ostream.hpp"
 #if INCLUDE_ALL_GCS
@@ -76,7 +78,6 @@
 #include "runtime/vm_operations.hpp"
 #include "services/memTracker.hpp"
 #include "services/runtimeService.hpp"
-#include "jfr/support/jfrThreadId.hpp"
 #include "utilities/defaultStream.hpp"
 #include "utilities/dtrace.hpp"
 #include "utilities/events.hpp"
@@ -5251,8 +5252,8 @@ _JNI_IMPORT_OR_EXPORT_ jint JNICALL JNI_CreateJavaVM(JavaVM **vm, void **penv, v
        JvmtiExport::post_thread_start(thread);
     }
 
-    JFR_ONLY(post_thread_start_event(thread);)
-   
+    post_thread_start_event(thread);
+
 #ifndef PRODUCT
   #ifndef CALL_TEST_FUNC_WITH_WRAPPER_IF_NEEDED
     #define CALL_TEST_FUNC_WITH_WRAPPER_IF_NEEDED(f) f()
@@ -5462,7 +5463,7 @@ static jint attach_current_thread(JavaVM *vm, void **penv, void *_args, bool dae
     JvmtiExport::post_thread_start(thread);
   }
 
-  JFR_ONLY(post_thread_start_event(thread);)
+  post_thread_start_event(thread);
 
   *(JNIEnv**)penv = thread->jni_environment();
 

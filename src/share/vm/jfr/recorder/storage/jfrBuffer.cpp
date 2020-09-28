@@ -24,9 +24,10 @@
 
 #include "precompiled.hpp"
 #include "jfr/recorder/storage/jfrBuffer.hpp"
-#include "runtime/atomic.hpp"
+#include "runtime/atomic.inline.hpp"
 #include "runtime/orderAccess.inline.hpp"
 #include "runtime/thread.inline.hpp"
+#include "jfr/recorder/jfrRecorder.hpp"
 
 static const u1* const MUTEX_CLAIM = NULL;
 
@@ -80,7 +81,7 @@ size_t JfrBuffer::discard() {
 const u1* JfrBuffer::stable_top() const {
   const u1* current_top;
   do {
-    current_top = (u1*)OrderAccess::load_ptr_acquire((void*)&_top);
+    current_top = (const u1*)OrderAccess::load_ptr_acquire(&_top);
   } while (MUTEX_CLAIM == current_top);
   return current_top;
 }
@@ -96,7 +97,7 @@ void JfrBuffer::set_top(const u1* new_top) {
 const u1* JfrBuffer::concurrent_top() const {
   do {
     const u1* current_top = stable_top();
-    if ((const u1*)Atomic::cmpxchg_ptr((void*)MUTEX_CLAIM, (void*)&_top, (void*)current_top) == current_top) {
+    if (Atomic::cmpxchg_ptr((void*)MUTEX_CLAIM, &_top, (void*)current_top) == current_top) {
       return current_top;
     }
   } while (true);
@@ -107,7 +108,7 @@ void JfrBuffer::set_concurrent_top(const u1* new_top) {
   assert(new_top <= end(), "invariant");
   assert(new_top >= start(), "invariant");
   assert(top() == MUTEX_CLAIM, "invariant");
-  OrderAccess::release_store_ptr((void*)&_top, (void*)new_top);
+  OrderAccess::release_store_ptr(&_top, (void*)new_top);
 }
 
 size_t JfrBuffer::unflushed_size() const {
@@ -119,13 +120,13 @@ void JfrBuffer::acquire(const void* id) {
   const void* current_id;
   do {
     current_id = OrderAccess::load_ptr_acquire(&_identity);
-  } while (current_id != NULL || Atomic::cmpxchg_ptr(const_cast<void *>(id), (void*)&_identity, const_cast<void*>(current_id)) != current_id);
+  } while (current_id != NULL || Atomic::cmpxchg_ptr((void*)id, &_identity, (void*)current_id) != current_id);
 }
 
 bool JfrBuffer::try_acquire(const void* id) {
   assert(id != NULL, "invariant");
   const void* const current_id = OrderAccess::load_ptr_acquire(&_identity);
-  return current_id == NULL && Atomic::cmpxchg_ptr(const_cast<void*>(id), (void*)&_identity, const_cast<void*>(current_id)) == current_id;
+  return current_id == NULL && Atomic::cmpxchg_ptr((void*)id, &_identity, (void*)current_id) == current_id;
 }
 
 void JfrBuffer::release() {
@@ -147,7 +148,7 @@ bool JfrBuffer::acquired_by_self() const {
 #ifdef ASSERT
 static bool validate_to(const JfrBuffer* const to, size_t size) {
   assert(to != NULL, "invariant");
-  assert(to->acquired_by_self(), "invariant");
+  if (!JfrRecorder::is_shutting_down()) assert(to->acquired_by_self(), "invariant");
   assert(to->free_size() >= size, "invariant");
   return true;
 }
@@ -225,16 +226,27 @@ void JfrBuffer::clear_lease() {
   assert(!lease(), "invariant");
 }
 
+static u2 load_acquire_flags(const u2* const flags) {
+  return OrderAccess::load_acquire((volatile jushort *)flags);
+}
+
+static void release_store_flags(u2* const flags, u2 new_flags) {
+  OrderAccess::release_store(flags, new_flags);
+}
+
 bool JfrBuffer::retired() const {
-  return (u1)RETIRED == (_flags & (u1)RETIRED);
+  return (u1)RETIRED == (load_acquire_flags(&_flags) & (u1)RETIRED);
 }
 
 void JfrBuffer::set_retired() {
-  _flags |= (u1)RETIRED;
+  const u2 new_flags = load_acquire_flags(&_flags) | (u1)RETIRED;
+  release_store_flags(&_flags, new_flags);
 }
 
 void JfrBuffer::clear_retired() {
-  if (retired()) {
-    _flags ^= (u1)RETIRED;
+  u2 new_flags = load_acquire_flags(&_flags);
+  if ((u1)RETIRED == (new_flags & (u1)RETIRED)) {
+    new_flags ^= (u1)RETIRED;
+    release_store_flags(&_flags, new_flags);
   }
 }

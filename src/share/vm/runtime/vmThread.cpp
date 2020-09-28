@@ -25,6 +25,8 @@
 #include "precompiled.hpp"
 #include "compiler/compileBroker.hpp"
 #include "gc_interface/collectedHeap.hpp"
+#include "jfr/jfrEvents.hpp"
+#include "jfr/support/jfrThreadId.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
@@ -38,8 +40,6 @@
 #include "utilities/dtrace.hpp"
 #include "utilities/events.hpp"
 #include "utilities/xmlstream.hpp"
-#include "jfr/jfrEvents.hpp"
-#include "jfr/support/jfrThreadId.hpp"
 
 #ifndef USDT2
 HS_DTRACE_PROBE_DECL3(hotspot, vmops__request, char *, uintptr_t, int);
@@ -209,8 +209,9 @@ void VMOperationQueue::oops_do(OopClosure* f) {
 //------------------------------------------------------------------------------------------------------------------
 // Implementation of VMThread stuff
 
-bool                VMThread::_should_terminate   = false;
+bool              VMThread::_should_terminate   = false;
 bool              VMThread::_terminated         = false;
+bool              VMThread::_gclog_reentry      = false;
 Monitor*          VMThread::_terminate_lock     = NULL;
 VMThread*         VMThread::_vm_thread          = NULL;
 VM_Operation*     VMThread::_cur_vm_operation   = NULL;
@@ -354,6 +355,11 @@ void VMThread::wait_for_vm_thread_exit() {
   }
 }
 
+void VMThread::print_on(outputStream* st) const {
+  st->print("\"%s\" ", name());
+  Thread::print_on(st);
+  st->cr();
+}
 
 static void post_vm_operation_event(EventExecuteVMOperation* event, VM_Operation* op) {
   assert(event != NULL, "invariant");
@@ -372,12 +378,6 @@ static void post_vm_operation_event(EventExecuteVMOperation* event, VM_Operation
   event->commit();
 }
 
-void VMThread::print_on(outputStream* st) const {
-  st->print("\"%s\" ", name());
-  Thread::print_on(st);
-  st->cr();
-}
-
 void VMThread::evaluate_operation(VM_Operation* op) {
   ResourceMark rm;
 
@@ -393,9 +393,7 @@ void VMThread::evaluate_operation(VM_Operation* op) {
 #endif /* USDT2 */
 
     EventExecuteVMOperation event;
-
     op->evaluate();
-
     if (event.should_commit()) {
       post_vm_operation_event(&event, op);
     }

@@ -78,10 +78,9 @@ class CodeBlob VALUE_OBJ_CLASS_SPEC {
   CodeStrings _strings;
 
  public:
-  static unsigned int align_code_offset(int offset);
-   
   // Returns the space needed for CodeBlob
   static unsigned int allocation_size(CodeBuffer* cb, int header_size);
+  static unsigned int align_code_offset(int offset);
 
   // Creation
   // a) simple CodeBlob
@@ -216,14 +215,16 @@ class BufferBlob: public CodeBlob {
   friend class AdapterBlob;
   friend class VtableBlob;
   friend class MethodHandlesAdapterBlob;
+  friend class WhiteBox;
 
-public:
+ private:
   // Creation support
   BufferBlob(const char* name, int size);
   BufferBlob(const char* name, int size, CodeBuffer* cb);
 
   void* operator new(size_t s, unsigned size, bool is_critical = false) throw();
 
+ public:
   // Creation
   static BufferBlob* create(const char* name, int buffer_size);
   static BufferBlob* create(const char* name, CodeBuffer* cb);

@@ -707,7 +707,6 @@ class GraphKit : public Phase {
   // exceptional control flow can be handled properly.
   void replace_call(CallNode* call, Node* result, bool do_replaced_nodes = false);
 
-  
   // helper functions for statistics
   void increment_counter(address counter_addr);   // increment a debug counter
   void increment_counter(Node*   counter_addr);   // increment a debug counter

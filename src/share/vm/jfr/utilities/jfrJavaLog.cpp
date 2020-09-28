@@ -25,41 +25,117 @@
 #include "precompiled.hpp"
 #include "jfr/jni/jfrJavaSupport.hpp"
 #include "jfr/utilities/jfrJavaLog.hpp"
-#include "jfr/utilities/jfrLog.hpp"
+#include "memory/resourceArea.hpp"
+#include "runtime/thread.inline.hpp"
 
+// #define JFR_LOG_TAGS_CONCATED(T0, T1, T2, T3, T4, T5, ...)  \
+//   T0 ## _ ## T1 ## _ ## T2 ## _ ## T3 ## _ ## T4 ## _ ## T5
+
+// enum JfrLogTagSetType {
+// #define JFR_LOG_TAG(...) \
+//     EXPAND_VARARGS(JFR_LOG_TAGS_CONCATED(__VA_ARGS__, _NO_TAG, _NO_TAG, _NO_TAG, _NO_TAG, _NO_TAG, _NO_TAG)),
+
+//     JFR_LOG_TAG_SET_LIST
+
+// #undef JFR_LOG_TAG
+//     JFR_LOG_TAG_SET_COUNT
+// };
+
+// struct jfrLogSubscriber
+// {
+//   jobject log_tag_enum_ref;
+//   LogTagSet* log_tag_set;
+// };
+
+// static jfrLogSubscriber log_tag_sets[JFR_LOG_TAG_SET_COUNT];
+
+// static void log_cfg_update(LogLevelType llt, JfrLogTagSetType jflt, TRAPS) {
+//   DEBUG_ONLY(JfrJavaSupport::check_java_thread_in_vm(THREAD));
+//   if (log_tag_sets[jflt].log_tag_enum_ref == NULL) {
+//     return;
+//   }
+//   jobject lt = log_tag_sets[jflt].log_tag_enum_ref;
+//   // set field tagSetLevel to llt value
+//   JavaValue result(T_VOID);
+//   JfrJavaArguments args(&result);
+//   args.set_klass(JfrJavaSupport::klass(lt));
+//   args.set_name("tagSetLevel", CHECK);
+//   args.set_signature("I", CHECK);
+//   args.set_receiver(JfrJavaSupport::resolve_non_null(lt));
+//   args.push_int(llt);
+//   JfrJavaSupport::set_field(&args, THREAD);
+// }
+
+// static LogLevelType highest_level(const LogTagSet& lts) {
+//   for (size_t i = 0; i < LogLevel::Count; i++) {
+//     if (lts.is_level((LogLevelType)i)) {
+//       return (LogLevelType)i;
+//     }
+//   }
+//   return LogLevel::Off;
+// }
+
+// static void log_config_change_internal(bool init, TRAPS) {
+//   LogLevelType llt;
+//   LogTagSet* lts;
+
+// #define JFR_LOG_TAG(...) \
+//   lts = &LogTagSetMapping<LOG_TAGS(__VA_ARGS__)>::tagset(); \
+//   if (init) { \
+//     JfrLogTagSetType tagSetType = \
+//       EXPAND_VARARGS(JFR_LOG_TAGS_CONCATED(__VA_ARGS__, _NO_TAG, _NO_TAG, _NO_TAG, _NO_TAG, _NO_TAG, _NO_TAG)); \
+//     assert(NULL == log_tag_sets[tagSetType].log_tag_set, "Init JFR LogTagSets twice"); \
+//     log_tag_sets[tagSetType].log_tag_set = lts; \
+//   } \
+//   llt = highest_level(*lts); \
+//   log_cfg_update(llt, \
+//   EXPAND_VARARGS(JFR_LOG_TAGS_CONCATED(__VA_ARGS__, _NO_TAG, _NO_TAG, _NO_TAG, _NO_TAG, _NO_TAG, _NO_TAG)), THREAD);
+//   JFR_LOG_TAG_SET_LIST
+// #undef JFR_LOG_TAG
+// }
+
+// static void log_config_change() {
+//   Thread* t = Thread::current();
+//   DEBUG_ONLY(JfrJavaSupport::check_java_thread_in_vm(t));
+//   log_config_change_internal(false, t);
+// }
 
 void JfrJavaLog::subscribe_log_level(jobject log_tag, jint id, TRAPS) {
-// jdk8 doesn't support log level, so do nothing
+  DEBUG_ONLY(JfrJavaSupport::check_java_thread_in_vm(THREAD));
+  // static bool subscribed_updates = true;
+  // assert(id < JFR_LOG_TAG_SET_COUNT,
+  //   "LogTag id, java and native not in synch, %d < %d", id, JFR_LOG_TAG_SET_COUNT);
+  // assert(NULL == log_tag_sets[id].log_tag_enum_ref, "Subscribing twice");
+  // log_tag_sets[id].log_tag_enum_ref = JfrJavaSupport::global_jni_handle(log_tag, THREAD);
+  // if (subscribed_updates) {
+  //   LogConfiguration::register_update_listener(&log_config_change);
+  //   log_config_change_internal(true, THREAD);
+  //   subscribed_updates = false;
+  // } else {
+  //   log_config_change_internal(false, THREAD);
+  // }
 }
 
 void JfrJavaLog::log(jint tag_set, jint level, jstring message, TRAPS) {
   DEBUG_ONLY(JfrJavaSupport::check_java_thread_in_vm(THREAD));
+  if (!LogJFR) {
+    return;
+  }
   if (message == NULL) {
     return;
   }
+  // if (level < (jint)LogLevel::First || level > (jint)LogLevel::Last) {
+  //   JfrJavaSupport::throw_illegal_argument_exception("LogLevel passed is outside valid range", THREAD);
+  //   return;
+  // }
+  // if (tag_set < 0 || tag_set >= (jint)JFR_LOG_TAG_SET_COUNT) {
+  //   JfrJavaSupport::throw_illegal_argument_exception("LogTagSet id is outside valid range", THREAD);
+  //   return;
+  // }
   ResourceMark rm(THREAD);
   const char* const s = JfrJavaSupport::c_str(message, CHECK);
   assert(s != NULL, "invariant");
-  
-  switch(level) {
-  case LogLevel::Off:
-    break;
-  case LogLevel::Trace:
-    log_trace(jfr)("%s", s);
-    break;
-  case LogLevel::Debug:
-    log_debug(jfr)("%s", s);
-    break;
-  case LogLevel::Info:
-    log_info(jfr)("%s", s);
-    break;
-  case LogLevel::Warning:
-    log_warning(jfr)("%s", s);
-    break;
-  case LogLevel::Error:
-    log_error(jfr)("%s", s);
-    break;  
-  default:
-    break;
-  }
+  // assert(log_tag_sets[tag_set].log_tag_set != NULL, "LogTagSet is not init");
+  // log_tag_sets[tag_set].log_tag_set->log((LogLevelType)level, s);
+  tty->print_cr("JFR: %s", s);
 }

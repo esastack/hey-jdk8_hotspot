@@ -23,6 +23,8 @@
  */
 
 #include "precompiled.hpp"
+//#include "classfile/stringTable.hpp"
+//#include "gc_interface/strongRootsScope.hpp"
 #include "jfr/leakprofiler/utilities/unifiedOop.hpp"
 #include "jfr/leakprofiler/checkpoint/rootResolver.hpp"
 #include "memory/iterator.hpp"
@@ -97,6 +99,7 @@ class ReferenceToRootClosure : public StackObj {
   bool do_system_dictionary_roots();
   bool do_management_roots();
   bool do_string_table_roots();
+//  bool do_aot_loader_roots();
 
   bool do_roots();
 
@@ -176,6 +179,13 @@ bool ReferenceToRootClosure::do_string_table_roots() {
   return rlc.complete();
 }
 
+//bool ReferenceToRootClosure::do_aot_loader_roots() {
+//  assert(!complete(), "invariant");
+//  ReferenceLocateClosure rcl(_callback, OldObjectRoot::_aot, OldObjectRoot::_type_undetermined, NULL);
+//  AOTLoader::oops_do(&rcl);
+//  return rcl.complete();
+//}
+
 bool ReferenceToRootClosure::do_roots() {
   assert(!complete(), "invariant");
   assert(OldObjectRoot::_system_undetermined == _info._system, "invariant");
@@ -221,6 +231,11 @@ bool ReferenceToRootClosure::do_roots() {
     return true;
   }
 
+//  if (do_aot_loader_roots()) {
+//   _complete = true;
+//    return true;
+//  }
+
   return false;
 }
 
@@ -239,12 +254,10 @@ class ReferenceToThreadRootClosure : public StackObj {
  public:
   ReferenceToThreadRootClosure(RootCallback& callback) :_callback(callback), _complete(false) {
     assert_locked_or_safepoint(Threads_lock);
-    JavaThread *jt = Threads::first();
-    while (jt) {
-      if (do_thread_roots(jt)) {
+    for (JavaThread *thread = Threads::first(); thread != NULL; thread = thread->next()) {
+      if (do_thread_roots(thread)) {
         return;
       }
-      jt = jt->next();
     }
   }
 
@@ -330,6 +343,7 @@ bool ReferenceToThreadRootClosure::do_thread_stack_detailed(JavaThread* jt) {
 
     // Traverse the execution stack
     for (StackFrameStream fst(jt); !fst.is_done(); fst.next()) {
+      // XXX set CLDClosure to NULL
       fst.current()->oops_do(&rcl, NULL, NULL, fst.register_map());
     }
 

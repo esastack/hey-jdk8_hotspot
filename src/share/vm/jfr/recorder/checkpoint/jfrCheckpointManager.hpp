@@ -60,7 +60,7 @@ class JfrCheckpointManager : public JfrCHeapObj {
   Mutex* _lock;
   const Thread* _service_thread;
   JfrChunkWriter& _chunkwriter;
-  bool _checkpoint_epoch_state;
+  u1 _checkpoint_epoch_state;
 
   // mspace callback
   void register_full(Buffer* t, Thread* thread);

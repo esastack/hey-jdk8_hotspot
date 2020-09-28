@@ -29,10 +29,10 @@
 #include "jfr/jni/jfrJavaSupport.hpp"
 #include "jfr/jni/jfrUpcalls.hpp"
 #include "jfr/support/jfrEventClass.hpp"
-#include "jfr/utilities/jfrLog.hpp"
 #include "memory/oopFactory.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayKlass.hpp"
+#include "oops/typeArrayOop.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/os.hpp"
 #include "runtime/thread.inline.hpp"
@@ -80,7 +80,7 @@ static const typeArrayOop invoke(jlong trace_id,
   args.push_oop(old_byte_array);
   JfrJavaSupport::call_static(&args, THREAD);
   if (HAS_PENDING_EXCEPTION) {
-    log_error(jfr, system)("JfrUpcall failed");
+    if (true) tty->print_cr("JfrUpcall failed");
     return NULL;
   }
   // The result should be a [B
@@ -98,7 +98,7 @@ static void log_error_and_throw_oom(jint new_bytes_length, TRAPS) {
   char error_buffer[ERROR_MSG_BUFFER_SIZE];
   jio_snprintf(error_buffer, ERROR_MSG_BUFFER_SIZE,
     "Thread local allocation (native) for " SIZE_FORMAT " bytes failed in JfrUpcalls", (size_t)new_bytes_length);
-  log_error(jfr, system)("%s", error_buffer);
+  if (true) tty->print_cr("%s", error_buffer);
   JfrJavaSupport::throw_out_of_memory_error(error_buffer, CHECK);
 }
 
@@ -176,4 +176,15 @@ void JfrUpcalls::new_bytes_eager_instrumentation(jlong trace_id,
   memcpy(new_bytes, new_byte_array->byte_at_addr(0), (size_t)new_bytes_length);
   *new_class_data_len = new_bytes_length;
   *new_class_data = new_bytes;
+}
+
+instanceKlassHandle JfrUpcalls::load_event_handler_proxy_class(TRAPS) {
+  JavaValue result(T_OBJECT);
+  JfrJavaArguments call_args(&result, "jdk/jfr/internal/JVMUpcalls",
+          "getEventHandlerProxyClass", "()Ljava/lang/Class;", CHECK_NULL);
+  JfrJavaSupport::call_static(&call_args, CHECK_NULL);
+  assert(result.get_type() == T_OBJECT, "invariant");
+  instanceHandle h_java_proxy(THREAD, (instanceOop)result.get_jobject());
+  assert(h_java_proxy.not_null(), "invariant");
+  return java_lang_Class::as_Klass(h_java_proxy());
 }

@@ -49,7 +49,6 @@
 #include "jfr/utilities/jfrTime.hpp"
 #include "jfr/writers/jfrJavaEventWriter.hpp"
 #include "jfrfiles/jfrPeriodic.hpp"
-#include "jfr/utilities/jfrLog.hpp"
 #include "memory/resourceArea.hpp"
 #include "runtime/interfaceSupport.hpp"
 #include "runtime/mutexLocker.hpp"
@@ -236,11 +235,11 @@ JVM_ENTRY_NO_ENV(jlong, jfr_stacktrace_id(JNIEnv* env, jobject jvm, jint skip))
 JVM_END
 
 JVM_ENTRY_NO_ENV(void, jfr_log(JNIEnv* env, jobject jvm, jint tag_set, jint level, jstring message))
-  JfrJavaLog::log(tag_set, level, message, thread);
+ JfrJavaLog::log(tag_set, level, message, thread);
 JVM_END
 
 JVM_ENTRY_NO_ENV(void, jfr_subscribe_log_level(JNIEnv* env, jobject jvm, jobject log_tag, jint id))
-  JfrJavaLog::subscribe_log_level(log_tag, id, thread);
+ JfrJavaLog::subscribe_log_level(log_tag, id, thread);
 JVM_END
 
 JVM_ENTRY_NO_ENV(void, jfr_set_output(JNIEnv* env, jobject jvm, jstring path))

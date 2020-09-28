@@ -25,29 +25,8 @@
 #include "precompiled.hpp"
 #include "jfr/utilities/jfrTime.hpp"
 #include "runtime/os.hpp"
-
 #if defined(X86) && !defined(ZERO)
 #include "rdtsc_x86.hpp"
-#endif
-
-#ifdef TARGET_OS_FAMILY_linux
-# include "os_linux.inline.hpp"
-# include "os_posix.hpp"
-#endif
-#ifdef TARGET_OS_FAMILY_solaris
-# include "os_solaris.inline.hpp"
-# include "os_posix.hpp"
-#endif
-#ifdef TARGET_OS_FAMILY_windows
-# include "os_windows.inline.hpp"
-#endif
-#ifdef TARGET_OS_FAMILY_aix
-# include "os_aix.inline.hpp"
-# include "os_posix.hpp"
-#endif
-#ifdef TARGET_OS_FAMILY_bsd
-# include "os_posix.hpp"
-# include "os_bsd.inline.hpp"
 #endif
 
 bool JfrTime::_ft_enabled = false;

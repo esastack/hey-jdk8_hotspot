@@ -390,10 +390,6 @@ class VM_RedefineClasses: public VM_Operation {
   // definition(s).
   jvmtiError load_new_class_versions(TRAPS);
 
-  // lock classes to redefine since constant pool merging isn't thread safe.
-  void lock_classes();
-  void unlock_classes();
-  
   // Verify that the caller provided class definition(s) that meet
   // the restrictions of RedefineClasses. Normalize the order of
   // overloaded methods as needed.
@@ -494,6 +490,9 @@ class VM_RedefineClasses: public VM_Operation {
 
   void flush_dependent_code(instanceKlassHandle k_h, TRAPS);
 
+  // lock classes to redefine since constant pool merging isn't thread safe.
+  void lock_classes();
+  void unlock_classes();
 
   static void dump_methods();
 

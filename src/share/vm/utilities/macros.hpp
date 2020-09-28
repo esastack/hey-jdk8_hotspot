@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -160,8 +160,6 @@
 #define NOT_NMT_RETURN_(code) { return code; }
 #endif // INCLUDE_NMT
 
-// Replace trace module and enable jfr default.
-// The macro INCLUDE_JFR makes the jfr writable.
 #ifndef INCLUDE_JFR
 #define INCLUDE_JFR 1
 #endif

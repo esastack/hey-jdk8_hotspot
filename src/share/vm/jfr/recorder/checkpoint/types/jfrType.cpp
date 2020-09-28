@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -151,12 +151,13 @@ void FlagValueOriginConstant::serialize(JfrCheckpointWriter& writer) {
 }
 
 void MonitorInflateCauseConstant::serialize(JfrCheckpointWriter& writer) {
-  static const u4 nof_entries = ObjectSynchronizer::inflate_cause_nof;
-  writer.write_count(nof_entries);
-  for (u4 i = 0; i < nof_entries; ++i) {
-    writer.write_key(i);
-    writer.write(ObjectSynchronizer::inflate_cause_name((ObjectSynchronizer::InflateCause)i));
-  }
+  // XXX no such counters. implement?
+//  static const u4 nof_entries = ObjectSynchronizer::inflate_cause_nof;
+//  writer.write_count(nof_entries);
+//  for (u4 i = 0; i < nof_entries; ++i) {
+//    writer.write_key(i);
+//    writer.write(ObjectSynchronizer::inflate_cause_name((ObjectSynchronizer::InflateCause)i));
+//  }
 }
 
 void GCCauseConstant::serialize(JfrCheckpointWriter& writer) {
@@ -279,10 +280,8 @@ void CompilerPhaseTypeConstant::serialize(JfrCheckpointWriter& writer) {
 void CodeBlobTypeConstant::serialize(JfrCheckpointWriter& writer) {
   static const u4 nof_entries = CodeBlobType::NumTypes;
   writer.write_count(nof_entries);
-  for (u4 i = 0; i < nof_entries; ++i) {
-    writer.write_key(i);
-    writer.write("CodeCache");
-  }
+  writer.write_key((u4)CodeBlobType::All);
+  writer.write("CodeCache");
 };
 
 void VMOperationTypeConstant::serialize(JfrCheckpointWriter& writer) {
@@ -317,7 +316,7 @@ void ClassUnloadTypeSet::serialize(JfrCheckpointWriter& writer) {
 
 void TypeSet::serialize(JfrCheckpointWriter& writer) {
   TypeSetSerialization type_set(false);
-  if (LeakProfiler::is_suspended()) {
+  if (LeakProfiler::is_running()) {
     JfrCheckpointWriter leakp_writer(false, true, Thread::current());
     type_set.write(writer, &leakp_writer);
     ObjectSampleCheckpoint::install(leakp_writer, false, true);

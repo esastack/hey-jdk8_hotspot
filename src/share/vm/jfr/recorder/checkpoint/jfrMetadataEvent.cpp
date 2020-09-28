@@ -28,6 +28,7 @@
 #include "jfr/recorder/repository/jfrChunkWriter.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/typeArrayOop.hpp"
 #include "runtime/semaphore.hpp"
 #include "runtime/thread.inline.hpp"
 
@@ -47,9 +48,9 @@ static void write_metadata_blob(JfrChunkWriter& chunkwriter, jbyteArray metadata
     const typeArrayOop arr = (typeArrayOop)JfrJavaSupport::resolve_non_null(metadata_blob);
     assert(arr != NULL, "invariant");
     const int length = arr->length();
-    const Klass* k = arr->klass();
-    assert(k != NULL && k->is_array_klass(), "invariant");
-    const TypeArrayKlass* const byte_arr_klass = TypeArrayKlass::cast(const_cast<Klass*>(k));
+    Klass* const k = arr->klass();
+    assert(k != NULL && k->oop_is_array(), "invariant");
+    const TypeArrayKlass* const byte_arr_klass = TypeArrayKlass::cast(k);
     const jbyte* const data_address = arr->byte_at_addr(0);
     chunkwriter.write_unbuffered(data_address, length);
   }

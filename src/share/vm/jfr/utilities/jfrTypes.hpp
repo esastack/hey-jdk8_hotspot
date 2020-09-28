@@ -42,4 +42,6 @@ enum EventStartTime {
   TIMED
 };
 
+jlong atomic_add_jlong(jlong value, jlong volatile* const dest);
+
 #endif // SHARE_VM_JFR_UTILITIES_JFRTYPES_HPP

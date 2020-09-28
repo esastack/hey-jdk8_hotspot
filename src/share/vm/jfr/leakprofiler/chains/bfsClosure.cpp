@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,11 +30,10 @@
 #include "jfr/leakprofiler/chains/edgeQueue.hpp"
 #include "jfr/leakprofiler/utilities/granularTimer.hpp"
 #include "jfr/leakprofiler/utilities/unifiedOop.hpp"
-#include "jfr/utilities/align.hpp"
-#include "jfr/utilities/jfrLog.hpp"
 #include "memory/iterator.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/oop.inline.hpp"
+#include "utilities/align.hpp"
 
 BFSClosure::BFSClosure(EdgeQueue* edge_queue, EdgeStore* edge_store, BitSet* mark_bits) :
   _edge_queue(edge_queue),
@@ -53,7 +52,7 @@ static void log_frontier_level_summary(size_t level,
                                        size_t low_idx,
                                        size_t edge_size) {
   const size_t nof_edges_in_frontier = high_idx - low_idx;
-  log_trace(jfr, system)(
+  if (LogJFR && Verbose) tty->print_cr(
       "BFS front: " SIZE_FORMAT " edges: " SIZE_FORMAT " size: " SIZE_FORMAT " [KB]",
       level,
       nof_edges_in_frontier,
@@ -83,14 +82,14 @@ void BFSClosure::log_dfs_fallback() const {
                              edge_size);
 
   // additional information about DFS fallover
-  log_trace(jfr, system)(
+  if (LogJFR && Verbose) tty->print_cr(
       "BFS front: " SIZE_FORMAT " filled edge queue at edge: " SIZE_FORMAT,
       _current_frontier_level,
       _dfs_fallback_idx
                         );
 
   const size_t nof_dfs_completed_edges = _edge_queue->bottom() - _dfs_fallback_idx;
-  log_trace(jfr, system)(
+  if (LogJFR && Verbose) tty->print_cr(
       "DFS to complete " SIZE_FORMAT " edges size: " SIZE_FORMAT " [KB]",
       nof_dfs_completed_edges,
       (nof_dfs_completed_edges * edge_size) / K
@@ -98,7 +97,6 @@ void BFSClosure::log_dfs_fallback() const {
 }
 
 void BFSClosure::process() {
-
   process_root_set();
   process_queue();
 }
@@ -137,7 +135,6 @@ void BFSClosure::closure_impl(const oop* reference, const oop pointee) {
 
     // if we are processinig initial root set, don't add to queue
     if (_current_parent != NULL) {
-      assert(_current_parent->distance_to_root() == _current_frontier_level, "invariant");
       _edge_queue->add(_current_parent, reference);
     }
 
@@ -150,20 +147,8 @@ void BFSClosure::closure_impl(const oop* reference, const oop pointee) {
 void BFSClosure::add_chain(const oop* reference, const oop pointee) {
   assert(pointee != NULL, "invariant");
   assert(NULL == pointee->mark(), "invariant");
-
-  const size_t length = _current_parent == NULL ? 1 : _current_parent->distance_to_root() + 2;
-  ResourceMark rm;
-  Edge* const chain = NEW_RESOURCE_ARRAY(Edge, length);
-  size_t idx = 0;
-  chain[idx++] = Edge(NULL, reference);
-  // aggregate from breadth-first search
-  const Edge* current = _current_parent;
-  while (current != NULL) {
-    chain[idx++] = Edge(NULL, current->reference());
-    current = current->parent();
-  }
-  assert(length == idx, "invariant");
-  _edge_store->add_chain(chain, length);
+  Edge leak_edge(_current_parent, reference);
+  _edge_store->put_chain(&leak_edge, _current_parent == NULL ? 1 : _current_frontier_level + 2);
 }
 
 void BFSClosure::dfs_fallback() {
@@ -238,5 +223,12 @@ void BFSClosure::do_oop(narrowOop* ref) {
   const oop pointee = oopDesc::load_decode_heap_oop(ref);
   if (pointee != NULL) {
     closure_impl(UnifiedOop::encode(ref), pointee);
+  }
+}
+
+void BFSClosure::do_root(const oop* ref) {
+  assert(ref != NULL, "invariant");
+  if (!_edge_queue->is_full()) {
+    _edge_queue->add(NULL, ref);
   }
 }

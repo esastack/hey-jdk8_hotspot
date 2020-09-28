@@ -32,6 +32,7 @@
 #include "interpreter/interpreter.hpp"
 #include "interpreter/linkResolver.hpp"
 #include "interpreter/oopMapCache.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "jvmtifiles/jvmtiEnv.hpp"
 #include "memory/gcLocker.inline.hpp"
 #include "memory/metaspaceShared.hpp"
@@ -109,9 +110,9 @@
 #if INCLUDE_RTM_OPT
 #include "runtime/rtmLocking.hpp"
 #endif
-#include "jfr/jfrEvents.hpp"
-#include "jfr/support/jfrThreadId.hpp"
+#if INCLUDE_JFR
 #include "jfr/jfr.hpp"
+#endif
 
 PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
@@ -340,12 +341,9 @@ void Thread::record_stack_base_and_size() {
 
 
 Thread::~Thread() {
-  JFR_ONLY(Jfr::on_thread_destruct(this);)
-
   // Reclaim the objectmonitors from the omFreeList of the moribund thread.
   ObjectSynchronizer::omFlush (this) ;
 
-  
   // stack_base can be NULL if the thread is never started or exited before
   // record_stack_base_and_size called. Although, we would like to ensure
   // that all started threads do call record_stack_base_and_size(), there is
@@ -964,7 +962,7 @@ bool Thread::is_in_stack(address adr) const {
   address end = os::current_stack_pointer();
   // Allow non Java threads to call this without stack_base
   if (_stack_base == NULL) return true;
-  if (stack_base() >= adr && adr >= end) return true;
+  if (stack_base() > adr && adr >= end) return true;
 
   return false;
 }
@@ -1216,6 +1214,7 @@ NamedThread::NamedThread() : Thread() {
 }
 
 NamedThread::~NamedThread() {
+  JFR_ONLY(Jfr::on_thread_exit(this);)
   if (_name != NULL) {
     FREE_C_HEAP_ARRAY(char, _name, mtThread);
     _name = NULL;
@@ -1242,7 +1241,7 @@ WatcherThread* WatcherThread::_watcher_thread   = NULL;
 bool WatcherThread::_startable = false;
 volatile bool  WatcherThread::_should_terminate = false;
 
-WatcherThread::WatcherThread() : Thread(), _crash_protection(NULL) {
+WatcherThread::WatcherThread() : Thread() {
   assert(watcher_thread() == NULL, "we can only allocate one WatcherThread");
   if (os::create_thread(this, os::watcher_thread)) {
     _watcher_thread = this;
@@ -1800,18 +1799,7 @@ void JavaThread::exit(bool destroy_vm, ExitType exit_type) {
         }
       }
     }
-
-    // Called before the java thread exit since we want to read info
-    // from java_lang_Thread object
-    EventThreadEnd event;
-    if (event.should_commit()) {
-      event.set_thread(JFR_THREAD_ID(this));
-      event.commit();
-    }
-
-    // Call after last event on thread
-    JFR_ONLY(Jfr::on_thread_exit(this);)
-    
+    JFR_ONLY(Jfr::on_java_thread_dismantle(this);)
 
     // Call Thread.exit(). We try 3 times in case we got another Thread.stop during
     // the execution of the method. If that is not enough, then we don't really care. Thread.stop
@@ -1888,6 +1876,7 @@ void JavaThread::exit(bool destroy_vm, ExitType exit_type) {
   // These things needs to be done while we are still a Java Thread. Make sure that thread
   // is in a consistent state, in case GC happens
   assert(_privileged_stack_top == NULL, "must be NULL when we get here");
+  JFR_ONLY(Jfr::on_thread_exit(this);)
 
   if (active_handles() != NULL) {
     JNIHandleBlock* block = active_handles();
@@ -3324,6 +3313,7 @@ void Threads::threads_do(ThreadClosure* tc) {
   }
 
 #endif
+
   // If CompilerThreads ever become non-JavaThreads, add them here
 }
 
@@ -3506,7 +3496,6 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   JvmtiExport::enter_start_phase();
 
   // Notify JVMTI agents that VM has started (JNI is up) - nop if no agents.
-  JvmtiExport::post_vm_start();
 
   {
     TraceTime timer("Initialize java.lang classes", TraceStartupTime);
@@ -3579,7 +3568,6 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
 
   quicken_jni_functions();
 
-
   // Set flag that basic initialization has completed. Used by exceptions and various
   // debug stuff, that does not work until all basic classes have been initialized.
   set_init_completed();
@@ -3649,7 +3637,7 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   JvmtiExport::post_vm_initialized();
 
   JFR_ONLY(Jfr::on_vm_start();)
- 
+
   if (CleanChunkPoolAsync) {
     Chunk::start_chunk_pool_cleaner_task();
   }

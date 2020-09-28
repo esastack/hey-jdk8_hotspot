@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "classfile/vmSymbols.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/markOop.hpp"
 #include "oops/oop.inline.hpp"
@@ -1061,7 +1062,6 @@ ObjectMonitor * ATTR ObjectSynchronizer::omAlloc (Thread * Self) {
         // The very first objectMonitor in a block is reserved and dedicated.
         // It serves as blocklist "next" linkage.
         temp[0].FreeNext = gBlockList;
-
         // There are lock-free uses of gBlockList so make sure that
         // the previous stores happen before we update gBlockList.
         OrderAccess::release_store_ptr(&gBlockList, temp);
@@ -1184,13 +1184,11 @@ void ObjectSynchronizer::omFlush (Thread * Self) {
 }
 
 static void post_monitor_inflate_event(EventJavaMonitorInflate* event,
-                                       const oop obj,
-                                       u1 cause) {
+                                       const oop obj) {
   assert(event != NULL, "invariant");
   assert(event->should_commit(), "invariant");
   event->set_monitorClass(obj->klass());
   event->set_address((uintptr_t)(void*)obj);
-  event->set_cause(cause);
   event->commit();
 }
 
@@ -1217,7 +1215,7 @@ ObjectMonitor * ATTR ObjectSynchronizer::inflate (Thread * Self, oop object) {
           !SafepointSynchronize::is_at_safepoint(), "invariant") ;
 
   EventJavaMonitorInflate event;
-  
+
   for (;;) {
       const markOop mark = object->mark() ;
       assert (!mark->has_bias_pattern(), "invariant") ;
@@ -1347,10 +1345,9 @@ ObjectMonitor * ATTR ObjectSynchronizer::inflate (Thread * Self, oop object) {
                 (void *) object, (intptr_t) object->mark(),
                 object->klass()->external_name());
             }
-          } 
-          
+          }
           if (event.should_commit()) {
-            post_monitor_inflate_event(&event, object, (u1)0);
+            post_monitor_inflate_event(&event, object);
           }
           return m ;
       }
@@ -1402,9 +1399,8 @@ ObjectMonitor * ATTR ObjectSynchronizer::inflate (Thread * Self, oop object) {
             object->klass()->external_name());
         }
       }
-
       if (event.should_commit()) {
-        post_monitor_inflate_event(&event, object, (u1)0);
+        post_monitor_inflate_event(&event, object);
       }
       return m ;
   }
@@ -1666,21 +1662,6 @@ void ObjectSynchronizer::release_monitors_owned_by_thread(TRAPS) {
   ObjectSynchronizer::monitors_iterate(&rjmc);
   Thread::muxRelease(&ListLock);
   THREAD->clear_pending_exception();
-}
-
-const char* ObjectSynchronizer::inflate_cause_name(const InflateCause cause) {
-  switch (cause) {
-    case inflate_cause_vm_internal:    return "VM Internal";
-    case inflate_cause_monitor_enter:  return "Monitor Enter";
-    case inflate_cause_wait:           return "Monitor Wait";
-    case inflate_cause_notify:         return "Monitor Notify";
-    case inflate_cause_hash_code:      return "Monitor Hash Code";
-    case inflate_cause_jni_enter:      return "JNI Monitor Enter";
-    case inflate_cause_jni_exit:       return "JNI Monitor Exit";
-    default:
-      ShouldNotReachHere();
-  }
-  return "Unknown";
 }
 
 //------------------------------------------------------------------------------

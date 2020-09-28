@@ -25,9 +25,10 @@
 #ifndef SHARE_VM_CLASSFILE_VMSYMBOLS_HPP
 #define SHARE_VM_CLASSFILE_VMSYMBOLS_HPP
 
-#include "oops/symbol.hpp"
-#include "memory/iterator.hpp"
 #include "jfr/support/jfrIntrinsics.hpp"
+#include "memory/iterator.hpp"
+#include "oops/symbol.hpp"
+#include "utilities/macros.hpp"
 
 // The class vmSymbols is a name space for fast lookup of
 // symbols commonly used in the VM.
@@ -606,8 +607,8 @@
   template(classRedefinedCount_name,                   "classRedefinedCount")                                     \
   template(classLoader_name,                           "classLoader")                                             \
                                                                                                                   \
-  /* jfr signatures */                                                                                          \
-  JFR_TEMPLATES(template)                                                                                    \
+  /* jfr signatures */                                                                                            \
+  JFR_TEMPLATES(template)                                                                                         \
                                                                                                                   \
   /*end*/
 

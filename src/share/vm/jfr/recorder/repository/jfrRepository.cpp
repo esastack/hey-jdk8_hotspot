@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,9 +30,9 @@
 #include "jfr/recorder/repository/jfrChunkWriter.hpp"
 #include "jfr/recorder/repository/jfrRepository.hpp"
 #include "jfr/recorder/service/jfrPostBox.hpp"
-#include "jfr/utilities/jfrLog.hpp"
 #include "memory/resourceArea.hpp"
 #include "runtime/mutex.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/os.hpp"
 #include "runtime/thread.inline.hpp"
 
@@ -209,8 +209,7 @@ const char* const RepositoryIterator::filter(const char* entry) const {
   if (entry_name == NULL) {
     return NULL;
   }
-  strncpy(entry_name, entry, entry_len);
-  entry_name[entry_len] = '\0';
+  strncpy(entry_name, entry, entry_len + 1);
   const char* const fully_qualified_path_entry = fully_qualified(entry_name);
   if (NULL == fully_qualified_path_entry) {
     return NULL;
@@ -237,7 +236,7 @@ RepositoryIterator::RepositoryIterator(const char* repository, size_t repository
     _files = new GrowableArray<const char*>(10);
     DIR* dirp = os::opendir(_repo);
     if (dirp == NULL) {
-      log_error(jfr, system)("Unable to open repository %s", _repo);
+      if (true) tty->print_cr("Unable to open repository %s", _repo);
       return;
     }
     struct dirent* dentry;
@@ -257,7 +256,7 @@ RepositoryIterator::RepositoryIterator(const char* repository, size_t repository
 #ifdef ASSERT
 void RepositoryIterator::print_repository_files() const {
   while (has_next()) {
-    log_error(jfr, system)( "%s", next());
+    if (true) tty->print_cr( "%s", next());
   }
 }
 #endif
@@ -291,8 +290,7 @@ static void write_emergency_file(fio_fd emergency_fd, const RepositoryIterator& 
         while (bytes_read < current_filesize) {
           const ssize_t read_result = os::read_at(current_fd, file_copy_block, size_of_file_copy_block, bytes_read);
           if (-1 == read_result) {
-            log_info(jfr) ( // For user, should not be "jfr, system"
-              "Unable to recover JFR data");
+            if (LogJFR) tty->print_cr("Unable to recover JFR data");
             break;
           }
           bytes_read += (int64_t)read_result;
@@ -339,8 +337,7 @@ static const char* create_emergency_dump_path() {
     if (NULL == emergency_dump_path) {
       return NULL;
     }
-    strncpy(emergency_dump_path, buffer, emergency_filename_length);
-    emergency_dump_path[emergency_filename_length] = '\0';
+    strncpy(emergency_dump_path, buffer, emergency_filename_length + 1);
   }
   return emergency_dump_path;
 }
@@ -376,7 +373,7 @@ static fio_fd emergency_dump_file() {
   }
   const fio_fd fd = open_exclusivly(emergency_dump_path);
   if (fd != invalid_fd) {
-    log_info(jfr)( // For user, should not be "jfr, system"
+    if (LogJFR) tty->print_cr( // For user, should not be "jfr, system"
       "Attempting to recover JFR data, emergency jfr file: %s", emergency_dump_path);
   }
   return fd;
@@ -414,8 +411,7 @@ bool JfrRepository::set_path(const char* path) {
   if (_path == NULL) {
     return false;
   }
-  strncpy(_path, path, path_len);
-  _path[path_len] = '\0';
+  strncpy(_path, path, path_len + 1);
   return true;
 }
 
