@@ -101,6 +101,13 @@ static void post_safepoint_begin_event(EventSafepointBegin* event,
   event->commit();
 }
 
+static void post_safepoint_cleanup_event(EventSafepointCleanup* event) {
+  assert(event != NULL, "invariant");
+  assert(event->should_commit(), "invariant");
+  set_current_safepoint_id(event);
+  event->commit();
+}
+
 static void post_safepoint_synchronize_event(EventSafepointStateSynchronization* event,
                                              int initial_number_of_threads,
                                              int threads_waiting_to_block,

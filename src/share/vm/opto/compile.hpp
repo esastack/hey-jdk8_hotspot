@@ -642,6 +642,7 @@ class Compile : public Phase {
       event.commit();
     }
 
+
 #ifndef PRODUCT
     if (_printer) _printer->print_method(this, CompilerPhaseTypeHelper::to_string(cpt), level);
 #endif
